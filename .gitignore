@@ -1,0 +1,8 @@
+node_modules
+containers.json
+public-endpoint.json
+# env files
+*.env
+.env*
+server/*.env
+client/*.env

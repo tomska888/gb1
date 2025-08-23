@@ -1,0 +1,17 @@
+{
+  "name": "goalbuddy",
+  "version": "1.0.0",
+  "description": "A social accountability tracker for personal goals.",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "workspaces": [
+    "server",
+    "client"
+  ]
+}

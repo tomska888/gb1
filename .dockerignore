@@ -1,0 +1,14 @@
+# Ignore node modules, logs, env files, and local VSCode configs
+**/node_modules
+**/dist
+**/*.log
+**/.env*
+.vscode/
+
+node_modules
+dist
+.git
+.gitignore
+npm-debug.log
+.env
+Dockerfile*

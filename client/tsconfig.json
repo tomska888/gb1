@@ -1,0 +1,22 @@
+ {
+   "compilerOptions": {
+     "target": "esnext",
+     "module": "esnext",
+     "moduleResolution": "node",
+     "strict": true,
+     "jsx": "preserve",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+   },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/shims-vue.d.ts",
+    "src/env.d.ts"
+  ]
+ }
