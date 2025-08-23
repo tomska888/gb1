@@ -3,6 +3,7 @@ import express from 'express'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import dns from 'dns/promises';
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,3 +33,11 @@ app.listen(port, '0.0.0.0', () => {
 })
 
 console.log('API_PROXY_PASS =', apiTarget)
+
+try {
+    const host = new URL(apiTarget).hostname;
+    const ip = await dns.lookup(host);
+    console.log('DNS lookup:', host, '->', ip.address);
+} catch (e) {
+    console.error('DNS lookup failed:', e);
+}
