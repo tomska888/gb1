@@ -69,7 +69,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
         run: |
-          INTERNAL_SERVER_URL="http://server.${SERVICE_NAME}.service.local:3000"
+          INTERNAL_SERVER_URL="http://${SERVICE_NAME}.service.local:3000"
 
           cat > containers.json <<EOF
           {
