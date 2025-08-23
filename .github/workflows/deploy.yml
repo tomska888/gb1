@@ -87,7 +87,7 @@ jobs:
               "image": "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:latest",
               "ports": { "80": "HTTP" },
               "environment": {
-                "API_PROXY_PASS": "${INTERNAL_SERVER_URL}"
+                "API_PROXY_PASS": "http://server:3000"
               }
             }
           }
