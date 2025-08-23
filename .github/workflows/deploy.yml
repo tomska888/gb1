@@ -41,36 +41,27 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image names
-        id: names
-        run: |
-          echo "SERVER_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_SERVER }}" >> $GITHUB_OUTPUT
-          echo "CLIENT_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}" >> $GITHUB_OUTPUT
+      - name: Build & push SERVER image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          file: server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_SERVER }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_SERVER }}:${{ github.sha }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build server image
-        run: |
-          docker buildx build --platform linux/amd64 \
-            -t "${{ steps.names.outputs.SERVER_IMAGE }}:latest" \
-            -t "${{ steps.names.outputs.SERVER_IMAGE }}:${{ github.sha }}" \
-            -f server/Dockerfile server
-      - name: Build client image
-        run: |
-          docker buildx build --platform linux/amd64 \
-            -t "${{ steps.names.outputs.CLIENT_IMAGE }}:latest" \
-            -t "${{ steps.names.outputs.CLIENT_IMAGE }}:${{ github.sha }}" \
-            -f client/Dockerfile client
-
-      - name: Push server image
-        run: |
-          docker push "${{ steps.names.outputs.SERVER_IMAGE }}:latest"
-          docker push "${{ steps.names.outputs.SERVER_IMAGE }}:${{ github.sha }}"
-      - name: Push client image
-        run: |
-          docker push "${{ steps.names.outputs.CLIENT_IMAGE }}:latest"
-          docker push "${{ steps.names.outputs.CLIENT_IMAGE }}:${{ github.sha }}"
+      - name: Build & push CLIENT image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          file: client/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:${{ github.sha }}
 
       - name: Generate Lightsail deployment files
         env:
@@ -80,7 +71,7 @@ jobs:
           cat > containers.json <<EOF
           {
             "server": {
-              "image": "${{ steps.names.outputs.SERVER_IMAGE }}:latest",
+              "image": "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_SERVER }}:latest",
               "ports": { "3000": "HTTP" },
               "environment": {
                 "NODE_ENV": "production",
@@ -90,7 +81,7 @@ jobs:
               }
             },
             "client": {
-              "image": "${{ steps.names.outputs.CLIENT_IMAGE }}:latest",
+              "image": "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:latest",
               "ports": { "80": "HTTP" },
               "environment": {
                 "API_PROXY_PASS": "http://server:3000"
