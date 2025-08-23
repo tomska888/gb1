@@ -14,14 +14,69 @@ env:
   DOCKER_DEFAULT_PLATFORM: linux/amd64
 
 jobs:
-  build_and_deploy:
+  test_build_deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # ---------- CLIENT LINT ----------
+      - name: Install client deps
+        working-directory: client
+        run: npm install
+
+      - name: Lint client
+        working-directory: client
+        run: npm run lint
+
+      # ---------- SERVER TESTS ON NEON + COVERAGE ----------
+      - name: Install server deps
+        working-directory: server
+        run: npm install
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Reset Neon test schema
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          # Hard reset the public schema to avoid flaky tests between runs
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE;"
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA public;"
+
+      - name: Run migrations on Neon (test)
+        working-directory: server
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: npm run migrate:latest
+
+      - name: Test server with coverage (Neon)
+        working-directory: server
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: |
+          npm run test:coverage || npx vitest run --coverage --run
+
+      - name: Upload server coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
+
+      # ---------- AWS LOGIN ----------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -41,6 +96,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # ---------- BUILD & PUSH IMAGES ----------
       - name: Build & push SERVER image
         uses: docker/build-push-action@v6
         with:
@@ -63,6 +119,7 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:latest
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}:${{ github.sha }}
 
+      # ---------- DEPLOY TO LIGHTSAIL ----------
       - name: Generate Lightsail deployment files
         env:
           DB_URL: ${{ secrets.DATABASE_URL }}
