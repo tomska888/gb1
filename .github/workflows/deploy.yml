@@ -1,0 +1,119 @@
+name: ci-cd
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-central-1
+  AWS_ACCOUNT_ID: "488927146088"
+  SERVICE_NAME: goalbuddyone
+  ECR_REPO_SERVER: tokosa1-server
+  ECR_REPO_CLIENT: tokosa1-client
+  DOCKER_DEFAULT_PLATFORM: linux/amd64
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ensure ECR repos exist
+        shell: bash
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPO_SERVER" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$ECR_REPO_SERVER"
+          aws ecr describe-repositories --repository-names "$ECR_REPO_CLIENT" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "$ECR_REPO_CLIENT"
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image names
+        id: names
+        run: |
+          echo "SERVER_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_SERVER }}" >> $GITHUB_OUTPUT
+          echo "CLIENT_IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO_CLIENT }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t "${{ steps.names.outputs.SERVER_IMAGE }}:latest" \
+            -t "${{ steps.names.outputs.SERVER_IMAGE }}:${{ github.sha }}" \
+            -f server/Dockerfile server
+      - name: Build client image
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t "${{ steps.names.outputs.CLIENT_IMAGE }}:latest" \
+            -t "${{ steps.names.outputs.CLIENT_IMAGE }}:${{ github.sha }}" \
+            -f client/Dockerfile client
+
+      - name: Push server image
+        run: |
+          docker push "${{ steps.names.outputs.SERVER_IMAGE }}:latest"
+          docker push "${{ steps.names.outputs.SERVER_IMAGE }}:${{ github.sha }}"
+      - name: Push client image
+        run: |
+          docker push "${{ steps.names.outputs.CLIENT_IMAGE }}:latest"
+          docker push "${{ steps.names.outputs.CLIENT_IMAGE }}:${{ github.sha }}"
+
+      - name: Generate Lightsail deployment files
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          cat > containers.json <<EOF
+          {
+            "server": {
+              "image": "${{ steps.names.outputs.SERVER_IMAGE }}:latest",
+              "ports": { "3000": "HTTP" },
+              "environment": {
+                "NODE_ENV": "production",
+                "PORT": "3000",
+                "DATABASE_URL": "${DB_URL}",
+                "JWT_SECRET": "${JWT_SECRET}"
+              }
+            },
+            "client": {
+              "image": "${{ steps.names.outputs.CLIENT_IMAGE }}:latest",
+              "ports": { "80": "HTTP" },
+              "environment": {
+                "API_PROXY_PASS": "http://server:3000"
+              }
+            }
+          }
+          EOF
+
+          cat > public-endpoint.json <<EOF
+          {
+            "containerName": "client",
+            "containerPort": 80,
+            "healthCheck": {
+              "path": "/",
+              "intervalSeconds": 15
+            }
+          }
+          EOF
+
+      - name: Deploy to Lightsail
+        run: |
+          aws lightsail create-container-service-deployment \
+            --region "${AWS_REGION}" \
+            --service-name "${SERVICE_NAME}" \
+            --containers file://containers.json \
+            --public-endpoint file://public-endpoint.json
