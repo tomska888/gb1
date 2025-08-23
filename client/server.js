@@ -30,3 +30,5 @@ app.get('*', (_req, res) => {
 app.listen(port, '0.0.0.0', () => {
     console.log(`Client listening on 0.0.0.0:${port}, proxy -> ${apiTarget}`)
 })
+
+console.log('API_PROXY_PASS =', apiTarget)
