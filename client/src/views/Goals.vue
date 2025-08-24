@@ -2,32 +2,50 @@
   <div>
     <h2>Your Goals</h2>
 
-    <!-- FILTER TABS -->
-    <ul class="nav nav-pills mb-3">
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: filter === 'in_progress' }" @click="setFilter('in_progress')">
-          Active <span class="badge bg-secondary ms-1">{{ counts.in_progress }}</span>
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: filter === 'completed' }" @click="setFilter('completed')">
-          Completed <span class="badge bg-secondary ms-1">{{ counts.completed }}</span>
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: filter === 'abandoned' }" @click="setFilter('abandoned')">
-          Abandoned <span class="badge bg-secondary ms-1">{{ counts.abandoned }}</span>
-        </button>
-      </li>
-      <li class="nav-item ms-auto">
-        <button class="nav-link" :class="{ active: filter === 'all' }" @click="setFilter('all')">
+    <!-- TOP BAR: Add button (left) + tabs + filters toggle (right) -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <button
+        class="btn btn-primary"
+        @click="onSubmit"
+        :disabled="!canAdd"
+        title="Create goal using the fields below"
+      >
+        Add Goal
+      </button>
+
+      <!-- FILTER TABS -->
+      <ul class="nav nav-pills flex-wrap ms-2">
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: filter === 'in_progress' }" @click="setFilter('in_progress')">
+            Active <span class="badge bg-secondary ms-1">{{ counts.in_progress }}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: filter === 'completed' }" @click="setFilter('completed')">
+            Completed <span class="badge bg-secondary ms-1">{{ counts.completed }}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: filter === 'abandoned' }" @click="setFilter('abandoned')">
+            Abandoned <span class="badge bg-secondary ms-1">{{ counts.abandoned }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary" :class="{ active: filter === 'all' }" @click="setFilter('all')">
           All <span class="badge bg-secondary ms-1">{{ goalStore.goals.length }}</span>
         </button>
-      </li>
-    </ul>
 
-    <!-- TOOLBAR: SEARCH + SORT -->
-    <div class="row g-2 align-items-end mb-3">
+        <button class="btn btn-outline-dark" @click="toggleFilters" title="Show/Hide search & sort">
+          <span v-if="showFilters">Hide Filters</span>
+          <span v-else>Show Filters</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- COLLAPSIBLE: SEARCH + SORT -->
+    <div v-if="showFilters" class="row g-2 align-items-end mb-3">
       <div class="col-md-6">
         <label class="form-label">Search</label>
         <input
@@ -49,13 +67,13 @@
         </select>
       </div>
       <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-secondary" @click="clearFilters" :disabled="!search && sortKey==='created_desc' && filter==='in_progress'">
+        <button class="btn btn-outline-secondary" @click="clearFilters">
           Reset
         </button>
       </div>
     </div>
 
-    <!-- CREATE / EDIT -->
+    <!-- CREATE / EDIT FIELDS (no submit button here; top-left Add submits) -->
     <form @submit.prevent="onSubmit" class="mb-4">
       <div class="row g-2 align-items-end">
         <div class="col-md-4">
@@ -71,10 +89,6 @@
         <div class="col-md-2">
           <label class="form-label">Target date</label>
           <input v-model="targetDate" type="date" class="form-control" />
-        </div>
-
-        <div class="col-md-2 d-grid">
-          <button type="submit" class="btn btn-primary">{{ editingId ? 'Save' : 'Add Goal' }}</button>
         </div>
       </div>
 
@@ -156,20 +170,25 @@ const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
 const editingId = ref<number | null>(null)
+const canAdd = computed(() => title.value.trim().length > 0)
 
 // filters
 type Filter = 'all' | 'in_progress' | 'completed' | 'abandoned'
 type SortKey = 'created_desc' | 'created_asc' | 'target_asc' | 'target_desc' | 'title_asc' | 'title_desc'
 
-const filter = ref<Filter>(localStorage.getItem('gb_filter') as Filter || 'in_progress')
+const filter = ref<Filter>((localStorage.getItem('gb_filter') as Filter) || 'in_progress')
 const sortKey = ref<SortKey>((localStorage.getItem('gb_sort') as SortKey) || 'created_desc')
 const search = ref<string>(localStorage.getItem('gb_search') || '')
+const showFilters = ref<boolean>(localStorage.getItem('gb_showFilters') === '1')
 
-watch([filter, sortKey, search], () => {
+watch([filter, sortKey, search, showFilters], () => {
   localStorage.setItem('gb_filter', filter.value)
   localStorage.setItem('gb_sort', sortKey.value)
   localStorage.setItem('gb_search', search.value)
+  localStorage.setItem('gb_showFilters', showFilters.value ? '1' : '0')
 })
+
+function toggleFilters() { showFilters.value = !showFilters.value }
 
 // counts
 const counts = computed(() => ({
@@ -178,7 +197,6 @@ const counts = computed(() => ({
   abandoned: goalStore.goals.filter((g) => g.status === 'abandoned').length,
 }))
 
-// helpers
 function setFilter(f: Filter) { filter.value = f }
 function clearFilters() {
   search.value = ''
@@ -186,6 +204,7 @@ function clearFilters() {
   filter.value = 'in_progress'
 }
 
+// filter, search, sort
 function normalize(s: string) { return s.toLowerCase().trim() }
 
 const filteredGoals = computed(() => {
@@ -263,7 +282,6 @@ function startEdit(goal: Goal) {
   description.value = goal.description ?? ''
   targetDate.value = goal.targetDate ? goal.targetDate.slice(0, 10) : null
 }
-
 function cancelEdit() { resetForm() }
 
 async function remove(id: number) {
