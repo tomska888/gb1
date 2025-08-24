@@ -26,6 +26,35 @@
       </li>
     </ul>
 
+    <!-- TOOLBAR: SEARCH + SORT -->
+    <div class="row g-2 align-items-end mb-3">
+      <div class="col-md-6">
+        <label class="form-label">Search</label>
+        <input
+          v-model="search"
+          type="search"
+          class="form-control"
+          placeholder="Search title or description…"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Sort by</label>
+        <select v-model="sortKey" class="form-select">
+          <option value="created_desc">Created (newest)</option>
+          <option value="created_asc">Created (oldest)</option>
+          <option value="target_asc">Target date (soonest)</option>
+          <option value="target_desc">Target date (latest)</option>
+          <option value="title_asc">Title (A–Z)</option>
+          <option value="title_desc">Title (Z–A)</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-outline-secondary" @click="clearFilters" :disabled="!search && sortKey==='created_desc' && filter==='in_progress'">
+          Reset
+        </button>
+      </div>
+    </div>
+
     <!-- CREATE / EDIT -->
     <form @submit.prevent="onSubmit" class="mb-4">
       <div class="row g-2 align-items-end">
@@ -56,10 +85,15 @@
 
     <!-- LIST -->
     <ul class="list-group">
-      <li v-for="goal in filteredGoals" :key="goal.id" class="list-group-item">
+      <li v-for="goal in visibleGoals" :key="goal.id" class="list-group-item">
         <div class="d-flex justify-content-between align-items-start">
           <div>
-            <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">{{ goal.title }}</h5>
+            <div class="d-flex align-items-center gap-2">
+              <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">{{ goal.title }}</h5>
+              <span v-if="isOverdue(goal)" class="badge bg-danger">Overdue</span>
+              <span v-else-if="isDueSoon(goal)" class="badge bg-warning text-dark">Due soon</span>
+            </div>
+
             <p v-if="goal.description" class="mb-1">{{ goal.description }}</p>
             <div class="text-muted">
               <small>Target: {{ goal.targetDate ? goal.targetDate.slice(0,10) : '—' }}</small>
@@ -103,7 +137,7 @@
       </li>
     </ul>
 
-    <div v-if="!filteredGoals.length" class="text-center text-muted mt-5">
+    <div v-if="!visibleGoals.length" class="text-center text-muted mt-5">
       No goals in this list.
     </div>
   </div>
@@ -112,39 +146,98 @@
 <script setup lang="ts">
 defineOptions({ name: 'GoalsView' })
 
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useGoalStore, type Goal, type Status } from '../stores/goal.store'
 
 const goalStore = useGoalStore()
 
+// form
 const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
 const editingId = ref<number | null>(null)
 
+// filters
 type Filter = 'all' | 'in_progress' | 'completed' | 'abandoned'
-const filter = ref<Filter>('in_progress')
+type SortKey = 'created_desc' | 'created_asc' | 'target_asc' | 'target_desc' | 'title_asc' | 'title_desc'
 
+const filter = ref<Filter>(localStorage.getItem('gb_filter') as Filter || 'in_progress')
+const sortKey = ref<SortKey>((localStorage.getItem('gb_sort') as SortKey) || 'created_desc')
+const search = ref<string>(localStorage.getItem('gb_search') || '')
+
+watch([filter, sortKey, search], () => {
+  localStorage.setItem('gb_filter', filter.value)
+  localStorage.setItem('gb_sort', sortKey.value)
+  localStorage.setItem('gb_search', search.value)
+})
+
+// counts
 const counts = computed(() => ({
   in_progress: goalStore.goals.filter((g) => g.status === 'in_progress').length,
   completed: goalStore.goals.filter((g) => g.status === 'completed').length,
   abandoned: goalStore.goals.filter((g) => g.status === 'abandoned').length,
 }))
 
-const filteredGoals = computed(() =>
-  filter.value === 'all'
+// helpers
+function setFilter(f: Filter) { filter.value = f }
+function clearFilters() {
+  search.value = ''
+  sortKey.value = 'created_desc'
+  filter.value = 'in_progress'
+}
+
+function normalize(s: string) { return s.toLowerCase().trim() }
+
+const filteredGoals = computed(() => {
+  const q = normalize(search.value)
+  const list = filter.value === 'all'
     ? goalStore.goals
     : goalStore.goals.filter((g) => g.status === filter.value)
-)
 
-function setFilter(f: Filter) {
-  filter.value = f
+  if (!q) return list
+  return list.filter((g) =>
+    g.title.toLowerCase().includes(q) ||
+    (g.description?.toLowerCase().includes(q) ?? false)
+  )
+})
+
+const visibleGoals = computed(() => {
+  const arr = [...filteredGoals.value]
+  const byDate = (d: string | null) => (d ? new Date(d).getTime() : Number.POSITIVE_INFINITY)
+  const byCreated = (d: string) => new Date(d).getTime()
+  switch (sortKey.value) {
+    case 'created_asc':   return arr.sort((a,b)=> byCreated(a.createdAt)-byCreated(b.createdAt))
+    case 'created_desc':  return arr.sort((a,b)=> byCreated(b.createdAt)-byCreated(a.createdAt))
+    case 'target_asc':    return arr.sort((a,b)=> byDate(a.targetDate)-byDate(b.targetDate))
+    case 'target_desc':   return arr.sort((a,b)=> byDate(b.targetDate)-byDate(a.targetDate))
+    case 'title_asc':     return arr.sort((a,b)=> a.title.localeCompare(b.title))
+    case 'title_desc':    return arr.sort((a,b)=> b.title.localeCompare(a.title))
+  }
+})
+
+// overdue / due soon
+function isOverdue(g: Goal) {
+  if (!g.targetDate || g.status === 'completed') return false
+  return new Date(g.targetDate).getTime() < todayMidnight()
+}
+function isDueSoon(g: Goal) {
+  if (!g.targetDate || g.status === 'completed') return false
+  const t = new Date(g.targetDate).getTime()
+  const today = todayMidnight()
+  const inThree = today + 3*24*60*60*1000
+  return t >= today && t <= inThree
+}
+function todayMidnight() {
+  const d = new Date()
+  d.setHours(0,0,0,0)
+  return d.getTime()
 }
 
 onMounted(async () => {
   await goalStore.loadGoals()
 })
 
+// actions
 async function onSubmit() {
   if (editingId.value) {
     await goalStore.updateGoal(editingId.value, {
@@ -171,9 +264,7 @@ function startEdit(goal: Goal) {
   targetDate.value = goal.targetDate ? goal.targetDate.slice(0, 10) : null
 }
 
-function cancelEdit() {
-  resetForm()
-}
+function cancelEdit() { resetForm() }
 
 async function remove(id: number) {
   if (!confirm('Delete this goal?')) return
@@ -189,7 +280,6 @@ async function onStatusChange(e: Event, goal: Goal) {
 async function markCompleted(goal: Goal) {
   await goalStore.updateGoal(goal.id, { status: 'completed' })
 }
-
 async function reopen(goal: Goal) {
   await goalStore.updateGoal(goal.id, { status: 'in_progress' })
 }
