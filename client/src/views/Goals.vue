@@ -2,6 +2,31 @@
   <div>
     <h2>Your Goals</h2>
 
+    <!-- FILTER TABS -->
+    <ul class="nav nav-pills mb-3">
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: filter === 'in_progress' }" @click="setFilter('in_progress')">
+          Active <span class="badge bg-secondary ms-1">{{ counts.in_progress }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: filter === 'completed' }" @click="setFilter('completed')">
+          Completed <span class="badge bg-secondary ms-1">{{ counts.completed }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" :class="{ active: filter === 'abandoned' }" @click="setFilter('abandoned')">
+          Abandoned <span class="badge bg-secondary ms-1">{{ counts.abandoned }}</span>
+        </button>
+      </li>
+      <li class="nav-item ms-auto">
+        <button class="nav-link" :class="{ active: filter === 'all' }" @click="setFilter('all')">
+          All <span class="badge bg-secondary ms-1">{{ goalStore.goals.length }}</span>
+        </button>
+      </li>
+    </ul>
+
+    <!-- CREATE / EDIT -->
     <form @submit.prevent="onSubmit" class="mb-4">
       <div class="row g-2 align-items-end">
         <div class="col-md-4">
@@ -29,25 +54,44 @@
       </div>
     </form>
 
+    <!-- LIST -->
     <ul class="list-group">
-      <li v-for="goal in goalStore.goals" :key="goal.id" class="list-group-item">
+      <li v-for="goal in filteredGoals" :key="goal.id" class="list-group-item">
         <div class="d-flex justify-content-between align-items-start">
           <div>
-            <h5 class="mb-1">{{ goal.title }}</h5>
+            <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">{{ goal.title }}</h5>
             <p v-if="goal.description" class="mb-1">{{ goal.description }}</p>
             <div class="text-muted">
               <small>Target: {{ goal.targetDate ? goal.targetDate.slice(0,10) : '—' }}</small>
               <small class="ms-2">Created at {{ formatDate(goal.createdAt) }}</small>
             </div>
+
             <div class="mt-1">
               <small class="text-muted">Status:</small>
-              <select class="form-select form-select-sm d-inline-block w-auto ms-1"
-                      :value="goal.status"
-                      @change="onStatusChange($event, goal)">
+              <select
+                class="form-select form-select-sm d-inline-block w-auto ms-1"
+                :value="goal.status"
+                @change="onStatusChange($event, goal)"
+              >
                 <option value="in_progress">In progress</option>
                 <option value="completed">Completed</option>
                 <option value="abandoned">Abandoned</option>
               </select>
+
+              <button
+                v-if="goal.status !== 'completed'"
+                class="btn btn-sm btn-success ms-2"
+                @click="markCompleted(goal)"
+              >
+                Complete
+              </button>
+              <button
+                v-else
+                class="btn btn-sm btn-outline-secondary ms-2"
+                @click="reopen(goal)"
+              >
+                Reopen
+              </button>
             </div>
           </div>
 
@@ -59,8 +103,8 @@
       </li>
     </ul>
 
-    <div v-if="!goalStore.goals.length" class="text-center text-muted mt-5">
-      No goals yet. Start by adding one above!
+    <div v-if="!filteredGoals.length" class="text-center text-muted mt-5">
+      No goals in this list.
     </div>
   </div>
 </template>
@@ -68,7 +112,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'GoalsView' })
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useGoalStore, type Goal, type Status } from '../stores/goal.store'
 
 const goalStore = useGoalStore()
@@ -77,6 +121,25 @@ const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
 const editingId = ref<number | null>(null)
+
+type Filter = 'all' | 'in_progress' | 'completed' | 'abandoned'
+const filter = ref<Filter>('in_progress')
+
+const counts = computed(() => ({
+  in_progress: goalStore.goals.filter((g) => g.status === 'in_progress').length,
+  completed: goalStore.goals.filter((g) => g.status === 'completed').length,
+  abandoned: goalStore.goals.filter((g) => g.status === 'abandoned').length,
+}))
+
+const filteredGoals = computed(() =>
+  filter.value === 'all'
+    ? goalStore.goals
+    : goalStore.goals.filter((g) => g.status === filter.value)
+)
+
+function setFilter(f: Filter) {
+  filter.value = f
+}
 
 onMounted(async () => {
   await goalStore.loadGoals()
@@ -123,6 +186,14 @@ async function onStatusChange(e: Event, goal: Goal) {
   await goalStore.updateGoal(goal.id, { status: value })
 }
 
+async function markCompleted(goal: Goal) {
+  await goalStore.updateGoal(goal.id, { status: 'completed' })
+}
+
+async function reopen(goal: Goal) {
+  await goalStore.updateGoal(goal.id, { status: 'in_progress' })
+}
+
 function resetForm() {
   editingId.value = null
   title.value = ''
@@ -136,5 +207,6 @@ function formatDate(dateStr: string) {
 </script>
 
 <style scoped>
-/* page-specific styling */
+.text-decoration-line-through { text-decoration: line-through; }
+.nav .nav-link { cursor: pointer; }
 </style>
