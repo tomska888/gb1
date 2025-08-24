@@ -14,6 +14,7 @@ export interface SharedGoal {
   tags: string | null;
   color: string | null;
   owner_id?: number; // present when returned by /goals/shared
+  permissions?: 'view' | 'checkin';
 }
 
 export interface Checkin {
