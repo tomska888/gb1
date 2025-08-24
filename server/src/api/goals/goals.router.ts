@@ -133,4 +133,6 @@ router.delete('/:id', authenticateToken, async (req, res, next): Promise<void> =
   }
 })
 
-export default router
+// ---- EXPORTS (named + default) ----
+export const goalsRouter = router
+export default goalsRouter
