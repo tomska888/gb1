@@ -1,28 +1,30 @@
 <template>
   <div>
+    <ToastHost />
+
     <h2>Your Goals</h2>
 
-    <!-- TABS: All (left) + Active + Completed + Abandoned | Filters toggle on right -->
+    <!-- TABS -->
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <ul class="nav nav-pills flex-wrap">
         <li class="nav-item">
-          <button class="nav-link" :class="{ active: filter === 'all' }" @click="setFilter('all')">
-            All <span class="badge bg-secondary ms-1">{{ goalStore.goals.length }}</span>
+          <button class="nav-link" :class="{ active: status === 'all' }" @click="setStatus('all')">
+            All <span class="badge bg-secondary ms-1">{{ total }}</span>
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" :class="{ active: filter === 'in_progress' }" @click="setFilter('in_progress')">
-            Active <span class="badge bg-secondary ms-1">{{ counts.in_progress }}</span>
+          <button class="nav-link" :class="{ active: status === 'in_progress' }" @click="setStatus('in_progress')">
+            Active
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" :class="{ active: filter === 'completed' }" @click="setFilter('completed')">
-            Completed <span class="badge bg-secondary ms-1">{{ counts.completed }}</span>
+          <button class="nav-link" :class="{ active: status === 'completed' }" @click="setStatus('completed')">
+            Completed
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" :class="{ active: filter === 'abandoned' }" @click="setFilter('abandoned')">
-            Abandoned <span class="badge bg-secondary ms-1">{{ counts.abandoned }}</span>
+          <button class="nav-link" :class="{ active: status === 'abandoned' }" @click="setStatus('abandoned')">
+            Abandoned
           </button>
         </li>
       </ul>
@@ -35,18 +37,32 @@
       </div>
     </div>
 
-    <!-- COLLAPSIBLE: SEARCH + SORT -->
+    <!-- COLLAPSIBLE: SEARCH + SORT + CATEGORY FILTER -->
     <div v-if="showFilters" class="row g-2 align-items-end mb-3">
-      <div class="col-md-6">
+      <div class="col-md-5">
         <label class="form-label">Search</label>
         <input
           v-model="search"
           type="search"
           class="form-control"
-          placeholder="Search title or description…"
+          placeholder="Search title, description, or tags…"
         />
       </div>
+
       <div class="col-md-4">
+        <label class="form-label">Category</label>
+        <input
+          v-model="categoryFilter"
+          list="gb-categories"
+          class="form-control"
+          placeholder="All categories"
+        />
+        <datalist id="gb-categories">
+          <option v-for="c in goalStore.categories" :key="c" :value="c" />
+        </datalist>
+      </div>
+
+      <div class="col-md-2">
         <label class="form-label">Sort by</label>
         <select v-model="sortKey" class="form-select">
           <option value="created_desc">Created (newest)</option>
@@ -57,22 +73,21 @@
           <option value="title_desc">Title (Z–A)</option>
         </select>
       </div>
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-outline-secondary" @click="clearFilters">
-          Reset
-        </button>
+
+      <div class="col-md-1 d-grid">
+        <button class="btn btn-outline-secondary" @click="resetFilters">Reset</button>
       </div>
     </div>
 
-    <!-- CREATE / EDIT FORM (Add button back here) -->
+    <!-- CREATE / EDIT FORM -->
     <form @submit.prevent="onSubmit" class="mb-4">
       <div class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Title</label>
-          <input v-model="title" placeholder="New goal title" type="text" class="form-control" required />
+          <input ref="titleInput" v-model="title" placeholder="New goal title" type="text" class="form-control" required />
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label">Description</label>
           <input v-model="description" placeholder="Optional description" type="text" class="form-control" />
         </div>
@@ -82,25 +97,44 @@
           <input v-model="targetDate" type="date" class="form-control" />
         </div>
 
-        <div class="col-md-2 d-grid">
+        <div class="col-md-2">
+          <label class="form-label">Category</label>
+          <input v-model="category" list="gb-categories" class="form-control" placeholder="e.g. Health" />
+        </div>
+
+        <div class="col-md-1">
+          <label class="form-label">Color</label>
+          <input v-model="color" type="color" class="form-control form-control-color" />
+        </div>
+
+        <div class="col-md-1 d-grid">
           <button type="submit" class="btn btn-primary">{{ editingId ? 'Save' : 'Add Goal' }}</button>
         </div>
       </div>
 
-      <div v-if="editingId" class="mt-2">
-        <button type="button" class="btn btn-secondary btn-sm" @click="cancelEdit">Cancel edit</button>
+      <div class="row g-2 mt-2">
+        <div class="col-md-6">
+          <label class="form-label">Tags (comma-separated)</label>
+          <input v-model="tags" class="form-control" placeholder="work, cardio, reading" />
+        </div>
+        <div v-if="editingId" class="col-md-2 d-grid">
+          <button type="button" class="btn btn-secondary" @click="cancelEdit">Cancel edit</button>
+        </div>
       </div>
     </form>
 
     <!-- LIST -->
     <ul class="list-group">
-      <li v-for="goal in visibleGoals" :key="goal.id" class="list-group-item">
+      <li v-for="goal in goalStore.goals" :key="goal.id" class="list-group-item">
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div class="d-flex align-items-center gap-2">
+              <span v-if="goal.color" class="d-inline-block rounded-circle" :style="{ background: goal.color, width: '10px', height: '10px' }"></span>
               <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">{{ goal.title }}</h5>
               <span v-if="isOverdue(goal)" class="badge bg-danger">Overdue</span>
               <span v-else-if="isDueSoon(goal)" class="badge bg-warning text-dark">Due soon</span>
+              <span v-if="goal.category" class="badge bg-secondary">{{ goal.category }}</span>
+              <span v-for="t in splitTags(goal.tags)" :key="t" class="badge bg-light text-dark border">{{ t }}</span>
             </div>
 
             <p v-if="goal.description" class="mb-1">{{ goal.description }}</p>
@@ -146,7 +180,19 @@
       </li>
     </ul>
 
-    <div v-if="!visibleGoals.length" class="text-center text-muted mt-5">
+    <!-- PAGINATION -->
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="text-muted small">
+        Page {{ goalStore.page }} / {{ goalStore.totalPages }} ·
+        Showing {{ showingFrom }}–{{ showingTo }} of {{ total }}
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-outline-secondary" :disabled="goalStore.page <= 1" @click="prevPage">Prev</button>
+        <button class="btn btn-outline-secondary" :disabled="goalStore.page >= goalStore.totalPages" @click="nextPage">Next</button>
+      </div>
+    </div>
+
+    <div v-if="!goalStore.goals.length && !goalStore.loading" class="text-center text-muted mt-5">
       No goals in this list.
     </div>
   </div>
@@ -155,80 +201,78 @@
 <script setup lang="ts">
 defineOptions({ name: 'GoalsView' })
 
-import { ref, onMounted, computed, watch } from 'vue'
-import { useGoalStore, type Goal, type Status } from '../stores/goal.store'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { useToastStore } from '../stores/toast.store'
+import { useGoalStore, type Goal, type Status, type SortKey } from '../stores/goal.store'
 
+const toast = useToastStore()
 const goalStore = useGoalStore()
+
+// refs for focusing
+const titleInput = ref<HTMLInputElement | null>(null)
 
 // form
 const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
+const category = ref<string>('')
+const tags = ref<string>('')
+const color = ref<string>('#3b82f6') // nice blue default
 const editingId = ref<number | null>(null)
 
-// filters
-type Filter = 'all' | 'in_progress' | 'completed' | 'abandoned'
-type SortKey = 'created_desc' | 'created_asc' | 'target_asc' | 'target_desc' | 'title_asc' | 'title_desc'
-
-const filter = ref<Filter>((localStorage.getItem('gb_filter') as Filter) || 'in_progress')
+// filters (server-side)
+type StatusTab = 'all' | 'in_progress' | 'completed' | 'abandoned'
+const status = ref<StatusTab>((localStorage.getItem('gb_status') as StatusTab) || 'in_progress')
 const sortKey = ref<SortKey>((localStorage.getItem('gb_sort') as SortKey) || 'created_desc')
-const search = ref<string>(localStorage.getItem('gb_search') || '')
 const showFilters = ref<boolean>(localStorage.getItem('gb_showFilters') === '1')
+const search = ref<string>(localStorage.getItem('gb_search') || '')
+const categoryFilter = ref<string>(localStorage.getItem('gb_cat') || '')
 
-watch([filter, sortKey, search, showFilters], () => {
-  localStorage.setItem('gb_filter', filter.value)
+// debounced search
+const debouncedSearch = ref<string>(search.value)
+let searchTimer: number | undefined
+watch(search, (val) => {
+  window.clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(() => (debouncedSearch.value = val), 250)
+})
+
+// persist UI state
+watch([status, sortKey, search, showFilters, categoryFilter], () => {
+  localStorage.setItem('gb_status', status.value)
   localStorage.setItem('gb_sort', sortKey.value)
   localStorage.setItem('gb_search', search.value)
   localStorage.setItem('gb_showFilters', showFilters.value ? '1' : '0')
+  localStorage.setItem('gb_cat', categoryFilter.value)
 })
+
+// derived
+const total = computed(() => goalStore.total)
+const showingFrom = computed(() => (goalStore.total === 0 ? 0 : (goalStore.page - 1) * goalStore.pageSize + 1))
+const showingTo = computed(() => Math.min(goalStore.page * goalStore.pageSize, goalStore.total))
 
 function toggleFilters() { showFilters.value = !showFilters.value }
-
-// counts
-const counts = computed(() => ({
-  in_progress: goalStore.goals.filter((g) => g.status === 'in_progress').length,
-  completed: goalStore.goals.filter((g) => g.status === 'completed').length,
-  abandoned: goalStore.goals.filter((g) => g.status === 'abandoned').length,
-}))
-
-function setFilter(f: Filter) { filter.value = f }
-function clearFilters() {
+function setStatus(s: StatusTab) { status.value = s; goalStore.page = 1; fetchList() }
+function resetFilters() {
   search.value = ''
+  categoryFilter.value = ''
   sortKey.value = 'created_desc'
-  filter.value = 'in_progress'
+  status.value = 'in_progress'
+  goalStore.page = 1
+  fetchList()
 }
 
-// filter, search, sort
-function normalize(s: string) { return s.toLowerCase().trim() }
+function splitTags(t: string | null) {
+  return (t ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+}
 
-const filteredGoals = computed(() => {
-  const q = normalize(search.value)
-  const list = filter.value === 'all'
-    ? goalStore.goals
-    : goalStore.goals.filter((g) => g.status === filter.value)
-
-  if (!q) return list
-  return list.filter((g) =>
-    g.title.toLowerCase().includes(q) ||
-    (g.description?.toLowerCase().includes(q) ?? false)
-  )
-})
-
-const visibleGoals = computed(() => {
-  const arr = [...filteredGoals.value]
-  const byDate = (d: string | null) => (d ? new Date(d).getTime() : Number.POSITIVE_INFINITY)
-  const byCreated = (d: string) => new Date(d).getTime()
-  switch (sortKey.value) {
-    case 'created_asc':   return arr.sort((a,b)=> byCreated(a.createdAt)-byCreated(b.createdAt))
-    case 'created_desc':  return arr.sort((a,b)=> byCreated(b.createdAt)-byCreated(a.createdAt))
-    case 'target_asc':    return arr.sort((a,b)=> byDate(a.targetDate)-byDate(b.targetDate))
-    case 'target_desc':   return arr.sort((a,b)=> byDate(b.targetDate)-byDate(a.targetDate))
-    case 'title_asc':     return arr.sort((a,b)=> a.title.localeCompare(b.title))
-    case 'title_desc':    return arr.sort((a,b)=> b.title.localeCompare(a.title))
-  }
-})
-
-// overdue / due soon
+function todayMidnight() {
+  const d = new Date()
+  d.setHours(0,0,0,0)
+  return d.getTime()
+}
 function isOverdue(g: Goal) {
   if (!g.targetDate || g.status === 'completed') return false
   return new Date(g.targetDate).getTime() < todayMidnight()
@@ -240,34 +284,75 @@ function isDueSoon(g: Goal) {
   const inThree = today + 3*24*60*60*1000
   return t >= today && t <= inThree
 }
-function todayMidnight() {
-  const d = new Date()
-  d.setHours(0,0,0,0)
-  return d.getTime()
+
+async function fetchList() {
+  await goalStore.loadGoals({
+    page: goalStore.page,
+    pageSize: goalStore.pageSize,
+    status: status.value,
+    q: debouncedSearch.value,
+    sort: sortKey.value,
+    category: categoryFilter.value || undefined,
+  })
+}
+
+function nextPage() {
+  if (goalStore.page < goalStore.totalPages) {
+    goalStore.page += 1
+    fetchList()
+  }
+}
+function prevPage() {
+  if (goalStore.page > 1) {
+    goalStore.page -= 1
+    fetchList()
+  }
 }
 
 onMounted(async () => {
-  await goalStore.loadGoals()
+  window.addEventListener('keydown', onKeyDown)
+  await goalStore.loadCategories()
+  await fetchList()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
 })
 
 // actions
 async function onSubmit() {
-  if (editingId.value) {
-    await goalStore.updateGoal(editingId.value, {
-      title: title.value,
-      description: description.value || null,
-      targetDate: targetDate.value ?? null,
-    })
-    resetForm()
-    return
-  }
+  try {
+    if (editingId.value) {
+      await goalStore.updateGoal(editingId.value, {
+        title: title.value,
+        description: description.value || null,
+        targetDate: targetDate.value ?? null,
+        category: category.value || null,
+        tags: tags.value || null,
+        color: color.value || null,
+      })
+      toast.success('Goal updated')
+      resetForm()
+      await fetchList()
+      return
+    }
 
-  await goalStore.addGoal({
-    title: title.value,
-    description: description.value || undefined,
-    targetDate: targetDate.value ?? null,
-  })
-  resetForm()
+    await goalStore.addGoal({
+      title: title.value,
+      description: description.value || undefined,
+      targetDate: targetDate.value ?? null,
+      category: category.value || undefined,
+      tags: tags.value || undefined,
+      color: color.value || undefined,
+    })
+    toast.success('Goal added')
+    resetForm()
+    // refresh first page (newest first by default)
+    goalStore.page = 1
+    await fetchList()
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Action failed')
+  }
 }
 
 function startEdit(goal: Goal) {
@@ -275,25 +360,46 @@ function startEdit(goal: Goal) {
   title.value = goal.title
   description.value = goal.description ?? ''
   targetDate.value = goal.targetDate ? goal.targetDate.slice(0, 10) : null
+  category.value = goal.category ?? ''
+  tags.value = goal.tags ?? ''
+  color.value = goal.color ?? '#3b82f6'
+  nextTick(() => titleInput.value?.focus())
 }
 function cancelEdit() { resetForm() }
 
 async function remove(id: number) {
   if (!confirm('Delete this goal?')) return
-  await goalStore.deleteGoal(id)
+  try {
+    await goalStore.deleteGoal(id)
+    toast.info('Goal deleted')
+    await fetchList()
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Delete failed')
+  }
 }
 
 async function onStatusChange(e: Event, goal: Goal) {
   const value = (e.target as HTMLSelectElement).value as Status
   if (value === goal.status) return
-  await goalStore.updateGoal(goal.id, { status: value })
+  try {
+    await goalStore.updateGoal(goal.id, { status: value })
+    toast.success('Status updated')
+  } catch {
+    toast.error('Failed to update status')
+  }
 }
 
 async function markCompleted(goal: Goal) {
-  await goalStore.updateGoal(goal.id, { status: 'completed' })
+  try {
+    await goalStore.updateGoal(goal.id, { status: 'completed' })
+    toast.success('Marked completed')
+  } catch { toast.error('Failed to update') }
 }
 async function reopen(goal: Goal) {
-  await goalStore.updateGoal(goal.id, { status: 'in_progress' })
+  try {
+    await goalStore.updateGoal(goal.id, { status: 'in_progress' })
+    toast.success('Reopened')
+  } catch { toast.error('Failed to update') }
 }
 
 function resetForm() {
@@ -301,10 +407,34 @@ function resetForm() {
   title.value = ''
   description.value = ''
   targetDate.value = null
+  category.value = ''
+  tags.value = ''
+  color.value = '#3b82f6'
 }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString()
+}
+
+// keyboard shortcuts (ignore when typing in inputs/textarea/select)
+function onKeyDown(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement)?.tagName
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+  if (!typing) {
+    if (e.key === '1') setStatus('all')
+    if (e.key === '2') setStatus('in_progress')
+    if (e.key === '3') setStatus('completed')
+    if (e.key === '4') setStatus('abandoned')
+
+    if (e.key === '/') {
+      e.preventDefault()
+      showFilters.value = true
+      nextTick(() => document.querySelector<HTMLInputElement>('input[type="search"]')?.focus())
+    }
+    if (e.key.toLowerCase() === 'n') {
+      nextTick(() => titleInput.value?.focus())
+    }
+  }
 }
 </script>
 
