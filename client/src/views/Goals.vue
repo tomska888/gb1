@@ -2,19 +2,14 @@
   <div>
     <h2>Your Goals</h2>
 
-    <!-- TOP BAR: Add button (left) + tabs + filters toggle (right) -->
+    <!-- TABS: All (left) + Active + Completed + Abandoned | Filters toggle on right -->
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-      <button
-        class="btn btn-primary"
-        @click="onSubmit"
-        :disabled="!canAdd"
-        title="Create goal using the fields below"
-      >
-        Add Goal
-      </button>
-
-      <!-- FILTER TABS -->
-      <ul class="nav nav-pills flex-wrap ms-2">
+      <ul class="nav nav-pills flex-wrap">
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: filter === 'all' }" @click="setFilter('all')">
+            All <span class="badge bg-secondary ms-1">{{ goalStore.goals.length }}</span>
+          </button>
+        </li>
         <li class="nav-item">
           <button class="nav-link" :class="{ active: filter === 'in_progress' }" @click="setFilter('in_progress')">
             Active <span class="badge bg-secondary ms-1">{{ counts.in_progress }}</span>
@@ -33,10 +28,6 @@
       </ul>
 
       <div class="ms-auto d-flex align-items-center gap-2">
-        <button class="btn btn-outline-secondary" :class="{ active: filter === 'all' }" @click="setFilter('all')">
-          All <span class="badge bg-secondary ms-1">{{ goalStore.goals.length }}</span>
-        </button>
-
         <button class="btn btn-outline-dark" @click="toggleFilters" title="Show/Hide search & sort">
           <span v-if="showFilters">Hide Filters</span>
           <span v-else>Show Filters</span>
@@ -73,7 +64,7 @@
       </div>
     </div>
 
-    <!-- CREATE / EDIT FIELDS (no submit button here; top-left Add submits) -->
+    <!-- CREATE / EDIT FORM (Add button back here) -->
     <form @submit.prevent="onSubmit" class="mb-4">
       <div class="row g-2 align-items-end">
         <div class="col-md-4">
@@ -89,6 +80,10 @@
         <div class="col-md-2">
           <label class="form-label">Target date</label>
           <input v-model="targetDate" type="date" class="form-control" />
+        </div>
+
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-primary">{{ editingId ? 'Save' : 'Add Goal' }}</button>
         </div>
       </div>
 
@@ -170,7 +165,6 @@ const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
 const editingId = ref<number | null>(null)
-const canAdd = computed(() => title.value.trim().length > 0)
 
 // filters
 type Filter = 'all' | 'in_progress' | 'completed' | 'abandoned'
