@@ -93,7 +93,7 @@ router.get('/goals/:goalId/shares', authenticateToken, async (req, res, next) =>
   } catch (e) { next(e) }
 })
 
-/** DELETE /api/goals/:goalId/share/:buddyId */
+// DELETE /api/goals/:goalId/share/:buddyId
 router.delete('/goals/:goalId/share/:buddyId', authenticateToken, async (req, res, next) => {
   try {
     const { goalId, buddyId } = z.object({
@@ -101,16 +101,38 @@ router.delete('/goals/:goalId/share/:buddyId', authenticateToken, async (req, re
       buddyId: z.coerce.number().int().positive(),
     }).parse(req.params)
 
-    if (!(await userOwnsGoal(req.userId!, goalId))) { res.status(403).json({ message: 'Forbidden' }); return }
+    if (!(await userOwnsGoal(req.userId!, goalId))) {
+      res.status(403).json({ message: 'Forbidden' })
+      return
+    }
 
-    await db
-      .deleteFrom('goal_shares')
-      .where('goal_id', '=', goalId)
-      .where('buddy_id', '=', buddyId)
-      .execute()
+    // Clear collaboration artefacts and the share entry in one transaction:
+    await db.transaction().execute(async (trx) => {
+      // 1) delete chat/messages for that goal (global chat on goal)
+      await trx
+        .deleteFrom('goal_messages')
+        .where('goal_id', '=', goalId)
+        .execute()
 
-    res.json({ ok: true })
-  } catch (e) { next(e) }
+      // 2) delete check-ins created by the buddy (keep owner’s history)
+      await trx
+        .deleteFrom('goal_checkins')
+        .where('goal_id', '=', goalId)
+        .where('user_id', '=', buddyId)
+        .execute()
+
+      // 3) finally, remove the share link
+      await trx
+        .deleteFrom('goal_shares')
+        .where('goal_id', '=', goalId)
+        .where('buddy_id', '=', buddyId)
+        .execute()
+    })
+
+    res.json({ ok: true, clearedMessages: true, clearedBuddyCheckins: true })
+  } catch (e) {
+    next(e)
+  }
 })
 
 /** GET /api/goals/shared */
