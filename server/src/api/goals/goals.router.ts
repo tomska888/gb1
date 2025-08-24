@@ -139,35 +139,47 @@ router.get('/categories', authenticateToken, async (req, res, next): Promise<voi
   } catch (err) { next(err) }
 })
 
-/* Counters (for tab badges) */
+/* ------------ Counters (for tabs) ------------ */
 router.get('/counters', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const q = (req.query.q as string) ?? ''
     const category = (req.query.category as string) ?? ''
+
     const base = db.selectFrom('goals').where('user_id', '=', req.userId!)
     const withCat = category ? base.where('category' as any, '=', category) : base
     const withSearch = q
-      ? withCat.where(eb => eb.or([
-          eb('title', 'ilike', `%${q}%`),
-          eb('description', 'ilike', `%${q}%`),
-          eb('tags' as any, 'ilike', `%${q}%`),
-        ]))
+      ? withCat.where(eb =>
+          eb.or([
+            eb('title', 'ilike', `%${q}%`),
+            eb('description', 'ilike', `%${q}%`),
+            eb('tags' as any, 'ilike', `%${q}%`),
+          ])
+        )
       : withCat
 
+    // CHANGED: don't force <number> here; coerce at runtime
     const rows = await withSearch
-      .select(['status']).select(({ fn }) => fn.count<number>('id').as('cnt'))
-      .groupBy('status').execute()
+      .select(['status'])
+      .select(({ fn }) => fn.count('id').as('cnt'))
+      .groupBy('status')
+      .execute()
 
+    // CHANGED: force numeric addition (avoid '12' + 3 + 1 => '1231')
     let in_progress = 0, completed = 0, abandoned = 0
-    for (const r of rows as Array<{ status: Status; cnt: number }>) {
-      if (r.status === 'in_progress') in_progress = r.cnt
-      if (r.status === 'completed')  completed = r.cnt
-      if (r.status === 'abandoned')  abandoned = r.cnt
+    for (const r of rows as Array<{ status: Status; cnt: unknown }>) {
+      const cnt = Number((r as any).cnt ?? 0)
+      if (r.status === 'in_progress') in_progress = cnt
+      else if (r.status === 'completed') completed = cnt
+      else if (r.status === 'abandoned') abandoned = cnt
     }
     const all = in_progress + completed + abandoned
+
     res.json({ all, in_progress, completed, abandoned })
-  } catch (err) { next(err) }
+  } catch (err) {
+    next(err)
+  }
 })
+
 
 export const goalsRouter = router
 export default goalsRouter
