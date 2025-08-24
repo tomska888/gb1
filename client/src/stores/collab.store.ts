@@ -1,38 +1,7 @@
 import { defineStore } from 'pinia'
 
-function headers(): HeadersInit {
-  const token = localStorage.getItem('token')
-  return token
-    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    : { 'Content-Type': 'application/json' }
-}
-
 export type CheckinStatus = 'on_track' | 'blocked' | 'done'
 
-export interface ShareEntry {
-  id: number
-  buddy_id: number
-  email: string
-  permissions: 'view' | 'checkin'
-  created_at: string
-}
-export interface CheckinEntry {
-  id: number
-  goal_id: number
-  user_id: number
-  status: CheckinStatus
-  progress: number | null
-  note: string | null
-  created_at: string
-}
-export interface MessageEntry {
-  id: number
-  goal_id: number
-  sender_id: number
-  body: string
-  created_at: string
-  email?: string
-}
 export interface SharedGoal {
   id: number
   user_id: number
@@ -46,75 +15,149 @@ export interface SharedGoal {
   color: string | null
 }
 
+export interface Checkin {
+  id: number
+  goal_id: number
+  user_id: number
+  status: CheckinStatus
+  progress: number | null
+  note: string | null
+  created_at: string
+}
+
+export interface Message {
+  id: number
+  goal_id: number
+  sender_id: number
+  body: string
+  created_at: string
+  email?: string
+}
+
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem('token')
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    : { 'Content-Type': 'application/json' }
+}
+
+function validId(id: unknown): id is number {
+  return typeof id === 'number' && Number.isFinite(id) && id > 0
+}
+
 export const useCollabStore = defineStore('collab', {
   state: () => ({
+    // shared goals list
     shared: [] as SharedGoal[],
-    sharedTotal: 0,
     sharedPage: 1,
     sharedPages: 1,
+    sharedTotal: 0,
 
-    shares: {} as Record<number, ShareEntry[]>,
-    checkins: {} as Record<number, CheckinEntry[]>,
-    messages: {} as Record<number, MessageEntry[]>,
+    // per-goal data caches
+    checkins: {} as Record<number, Checkin[]>,
+    messages: {} as Record<number, Message[]>,
+
+    // shares (per goal)
+    shares: {} as Record<number, Array<{ id: number; buddy_id: number; email: string; permissions: string; created_at: string }>>,
   }),
+
   actions: {
-    async listShared(params: { page?: number; pageSize?: number; q?: string; sort?: string; category?: string; status?: string } = {}) {
-      const qs = new URLSearchParams()
-      if (params.page) qs.set('page', String(params.page))
-      if (params.pageSize) qs.set('pageSize', String(params.pageSize))
-      if (params.q) qs.set('q', params.q)
-      if (params.sort) qs.set('sort', params.sort)
-      if (params.category) qs.set('category', params.category)
-      if (params.status) qs.set('status', params.status)
-      const r = await fetch(`/api/goals/shared?${qs.toString()}`, { headers: headers() })
-      const j = await r.json()
-      this.shared = j.data as SharedGoal[]
-      this.sharedTotal = j.total as number
-      this.sharedPage = j.page as number
-      this.sharedPages = j.totalPages as number
+    /* -------- shared goals ---------- */
+    async listShared(params?: { page?: number; pageSize?: number; q?: string; sort?: string; category?: string; status?: string }) {
+      const p = new URLSearchParams()
+      if (params?.page) p.set('page', String(params.page))
+      if (params?.pageSize) p.set('pageSize', String(params.pageSize))
+      if (params?.q) p.set('q', params.q)
+      if (params?.sort) p.set('sort', params.sort)
+      if (params?.category) p.set('category', params.category)
+      if (params?.status) p.set('status', params.status)
+
+      const r = await fetch(`/api/collab/goals/shared?${p.toString()}`, { headers: authHeaders() })
+      if (!r.ok) throw new Error('Failed to load shared goals')
+      const json = await r.json()
+      this.shared = json.data as SharedGoal[]
+      this.sharedPage = json.page
+      this.sharedPages = json.totalPages
+      this.sharedTotal = json.total
     },
 
-    async getShares(goalId: number) {
-      const r = await fetch(`/api/goals/${goalId}/shares`, { headers: headers() })
-      this.shares[goalId] = r.ok ? ((await r.json()) as ShareEntry[]) : []
-    },
-    async share(goalId: number, email: string, permissions: 'view' | 'checkin' = 'checkin') {
-      await fetch(`/api/goals/${goalId}/share`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ email, permissions }),
-      })
-      await this.getShares(goalId)
-    },
-    async revokeShare(goalId: number, buddyId: number) {
-      await fetch(`/api/goals/${goalId}/share/${buddyId}`, { method: 'DELETE', headers: headers() })
-      await this.getShares(goalId)
-    },
-
+    /* -------- check-ins ------------ */
     async listCheckins(goalId: number) {
-      const r = await fetch(`/api/goals/${goalId}/checkins`, { headers: headers() })
-      this.checkins[goalId] = r.ok ? ((await r.json()) as CheckinEntry[]) : []
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/checkins`, { headers: authHeaders() })
+      if (!r.ok) throw new Error('Failed to load check-ins')
+      const data = (await r.json()) as Checkin[]
+      this.checkins[goalId] = data
     },
-    async addCheckin(goalId: number, payload: { status?: CheckinStatus; progress?: number | null; note?: string }) {
-      await fetch(`/api/goals/${goalId}/checkins`, {
+
+    async addCheckin(goalId: number, payload: { status: CheckinStatus; progress?: number | null; note?: string }) {
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/checkins`, {
         method: 'POST',
-        headers: headers(),
+        headers: authHeaders(),
         body: JSON.stringify(payload),
       })
-      await this.listCheckins(goalId)
+      if (!r.ok) {
+        const t = await r.text()
+        throw new Error(t || 'Failed to add check-in')
+      }
+      const row = (await r.json()) as Checkin
+      const list = this.checkins[goalId] ?? []
+      this.checkins[goalId] = [row, ...list]
     },
 
+    /* -------- messages ------------- */
     async listMessages(goalId: number) {
-      const r = await fetch(`/api/goals/${goalId}/messages`, { headers: headers() })
-      this.messages[goalId] = r.ok ? ((await r.json()) as MessageEntry[]) : []
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/messages`, { headers: authHeaders() })
+      if (!r.ok) throw new Error('Failed to load messages')
+      const data = (await r.json()) as Message[]
+      this.messages[goalId] = data
     },
-    async sendMessage(goalId: number, body: string) {
-      await fetch(`/api/goals/${goalId}/messages`, {
+
+    async addMessage(goalId: number, body: string) {
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/messages`, {
         method: 'POST',
-        headers: headers(),
+        headers: authHeaders(),
         body: JSON.stringify({ body }),
       })
-      await this.listMessages(goalId)
+      if (!r.ok) throw new Error('Failed to add message')
+      const row = (await r.json()) as Message
+      const list = this.messages[goalId] ?? []
+      this.messages[goalId] = [row, ...list]
+    },
+
+    /* -------- shares (owner side) -- */
+    async getShares(goalId: number) {
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/shares`, { headers: authHeaders() })
+      if (!r.ok) throw new Error('Failed to load shares')
+      this.shares[goalId] = await r.json()
+    },
+
+    async share(goalId: number, email: string, permissions: 'view' | 'checkin' = 'checkin') {
+      if (!validId(goalId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/share`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ email, permissions }),
+      })
+      if (!r.ok) throw new Error('Share failed')
+      await this.getShares(goalId)
+    },
+
+    async revokeShare(goalId: number, buddyId: number) {
+      if (!validId(goalId) || !validId(buddyId)) return
+      const r = await fetch(`/api/collab/goals/${goalId}/share/${buddyId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (!r.ok) throw new Error('Revoke failed')
+      await this.getShares(goalId)
+      // also purge cached chat/checkins for a clean UX
+      delete this.checkins[goalId]
+      delete this.messages[goalId]
     },
   },
 })

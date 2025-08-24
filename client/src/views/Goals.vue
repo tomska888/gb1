@@ -175,7 +175,7 @@
     </div>
 
     <!-- Share modal -->
-    <ShareDialog :goalId="shareGoalId" />
+    <ShareDialog :goalId="shareGoalId ?? undefined" />
   </div>
 </template>
 
