@@ -10,15 +10,25 @@
               <h5 class="mb-1">{{ g.title }}</h5>
               <span v-if="g.status === 'completed'" class="badge bg-success">Completed</span>
             </div>
-            <small class="text-muted">Owner goal · Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}</small>
-            <CheckinsPanel :goalId="g.id" />
+            <small class="text-muted">
+              Owner goal · Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}
+            </small>
+
+            <!-- Hide status & % inputs for buddies -->
+            <CheckinsPanel
+              :goalId="g.id"
+              :showStatus="false"
+              :showProgress="false"
+            />
           </div>
         </div>
       </li>
     </ul>
 
     <div class="d-flex justify-content-between align-items-center mt-3">
-      <div class="text-muted small">Page {{ collab.sharedPage }} / {{ collab.sharedPages }} · {{ collab.sharedTotal }} total</div>
+      <div class="text-muted small">
+        Page {{ collab.sharedPage }} / {{ collab.sharedPages }} · {{ collab.sharedTotal }} total
+      </div>
       <div class="btn-group">
         <button class="btn btn-outline-secondary" :disabled="collab.sharedPage<=1" @click="prev">Prev</button>
         <button class="btn btn-outline-secondary" :disabled="collab.sharedPage>=collab.sharedPages" @click="next">Next</button>
