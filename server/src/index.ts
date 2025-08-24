@@ -19,7 +19,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRouter);
 app.use('/api/goals', goalsRouter);
-app.use('/api', collabRouter)
+app.use('/api/collab', collabRouter)
 
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({

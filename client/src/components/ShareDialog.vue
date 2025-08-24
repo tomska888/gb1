@@ -6,7 +6,6 @@
           <h5 class="modal-title">Share goal</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
         </div>
-
         <div class="modal-body">
           <div class="input-group mb-3">
             <input v-model="email" type="email" class="form-control" placeholder="buddy@email.com" />
@@ -17,22 +16,12 @@
             <button class="btn btn-primary" :disabled="!email" @click="doShare">Share</button>
           </div>
 
-          <div class="text-muted small mb-3">
-            Revoking access now also clears chat messages and buddy's check-ins for this goal.
-          </div>
-
           <div v-if="shares.length">
             <div class="fw-semibold mb-2">Shared with</div>
             <ul class="list-group">
-              <li
-                v-for="s in shares"
-                :key="s.id"
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
+              <li v-for="s in shares" :key="s.id" class="list-group-item d-flex justify-content-between align-items-center">
                 <span>{{ s.email }} <small class="text-muted">({{ s.permissions }})</small></span>
-                <button class="btn btn-sm btn-outline-danger" @click="revoke(s.buddy_id)">
-                  Revoke &amp; clear chat
-                </button>
+                <button class="btn btn-sm btn-outline-danger" @click="revoke(s.buddy_id)">Revoke</button>
               </li>
             </ul>
           </div>
@@ -44,39 +33,21 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref, watch } from 'vue'
-import { useCollabStore } from '../stores/collab.store'
+import { defineComponent, computed, ref, watch } from 'vue';
+import { useCollabStore } from '../stores/collab.store';
 
 export default defineComponent({
   name: 'ShareDialog',
   props: { goalId: { type: Number, required: false } },
   setup(props) {
-    const collab = useCollabStore()
-    const email = ref('')
-    const perm = ref<'view'|'checkin'>('checkin')
-
-    const shares = computed(() =>
-      (props.goalId ? collab.shares[props.goalId] ?? [] : [])
-    )
-
-    watch(() => props.goalId, async (id) => {
-      if (id) await collab.getShares(id)
-    })
-
-    async function doShare() {
-      if (!props.goalId) return
-      await collab.share(props.goalId, email.value, perm.value)
-      email.value = ''
-      await collab.getShares(props.goalId)
-    }
-
-    async function revoke(buddyId: number) {
-      if (!props.goalId) return
-      await collab.revokeShare(props.goalId, buddyId)
-      await collab.getShares(props.goalId)
-    }
-
-    return { email, perm, shares, doShare, revoke }
+    const collab = useCollabStore();
+    const email = ref('');
+    const perm = ref<'view'|'checkin'>('checkin');
+    const shares = computed(() => (props.goalId ? collab.shares[props.goalId] ?? [] : []));
+    watch(() => props.goalId, async (id) => { if (id) await collab.getShares(id); });
+    async function doShare() { if (!props.goalId) return; await collab.share(props.goalId, email.value, perm.value); email.value = ''; }
+    async function revoke(buddyId: number) { if (!props.goalId) return; await collab.revokeShare(props.goalId, buddyId); }
+    return { email, perm, shares, doShare, revoke };
   }
-})
+});
 </script>
