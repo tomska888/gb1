@@ -39,8 +39,7 @@ async function canAccess(userId: number, goalId: number): Promise<boolean> {
 const PathGoalId = z.object({ goalId: z.coerce.number().int().positive() });
 
 /* =======================================================================
-   SHARES
-   Base: /api/collab
+   SHARES  (/api/collab)
    ======================================================================= */
 
 // POST /api/collab/goals/:goalId/share
@@ -168,6 +167,44 @@ router.delete(
 );
 
 /* =======================================================================
+   WHO SHARES WITH ME
+   ======================================================================= */
+
+// GET /api/collab/owners
+router.get(
+  '/owners',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // Owners (users) who have shared at least one goal with the current user.
+      const rows = await db
+        .selectFrom('goal_shares')
+        .innerJoin('users', 'users.id', 'goal_shares.owner_id')
+        .select([
+          // simple projections
+          'goal_shares.owner_id as owner_id',
+          'users.email as email',
+        ])
+        .select((eb) => eb.fn.count<number>('goal_shares.goal_id').as('goal_count'))
+        .where('goal_shares.buddy_id', '=', req.userId!)
+        .groupBy(['goal_shares.owner_id', 'users.email'])
+        .orderBy('users.email', 'asc')
+        .execute();
+
+      res.json(
+        rows.map((r) => ({
+          owner_id: r.owner_id,
+          email: r.email,
+          goal_count: Number((r as any).goal_count ?? 0),
+        }))
+      );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+/* =======================================================================
    LIST SHARED
    ======================================================================= */
 
@@ -188,10 +225,11 @@ router.get(
             .default('created_desc'),
           category: z.string().optional().default(''),
           status: z.enum(['all', 'in_progress', 'completed', 'abandoned']).optional().default('all'),
+          ownerId: z.coerce.number().int().positive().optional(), // NEW (filter by owner)
         })
         .parse(req.query);
 
-      const base = db
+      let base = db
         .selectFrom('goals')
         .innerJoin('goal_shares', 'goal_shares.goal_id', 'goals.id')
         .select([
@@ -205,8 +243,13 @@ router.get(
           'goals.category',
           'goals.tags',
           'goals.color',
+          'goal_shares.owner_id',
         ])
         .where('goal_shares.buddy_id', '=', req.userId!);
+
+      if (qp.ownerId) {
+        base = base.where('goal_shares.owner_id', '=', qp.ownerId);
+      }
 
       const withStatus = qp.status === 'all' ? base : base.where('goals.status', '=', qp.status);
       const withCat = qp.category ? withStatus.where('goals.category', '=', qp.category) : withStatus;

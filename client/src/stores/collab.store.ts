@@ -13,6 +13,7 @@ export interface SharedGoal {
   category: string | null;
   tags: string | null;
   color: string | null;
+  owner_id?: number; // present when returned by /goals/shared
 }
 
 export interface Checkin {
@@ -41,6 +42,12 @@ export interface ShareRow {
   created_at: string;
 }
 
+export interface OwnerRow {
+  owner_id: number;
+  email: string;
+  goal_count: number;
+}
+
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem('token');
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -60,18 +67,40 @@ export const useCollabStore = defineStore('collab', {
     checkins: {} as Record<number, Checkin[]>,
     messages: {} as Record<number, Message[]>,
     shares: {} as Record<number, ShareRow[]>,
+
+    // owners who share with me
+    owners: [] as OwnerRow[],
+    ownersLoaded: false,
+    pageSize: 10,
   }),
 
   actions: {
+    /* ---------- list owners (who share with me) ---------- */
+    async listOwners() {
+      const r = await fetch('/api/collab/owners', { headers: authHeaders() });
+      if (!r.ok) throw new Error('Failed to load owners');
+      this.owners = await r.json();
+      this.ownersLoaded = true;
+    },
+
     /* ---------- list shared goals ---------- */
-    async listShared(opts?: { page?: number; pageSize?: number; q?: string; sort?: string; category?: string; status?: string }) {
+    async listShared(opts?: {
+      page?: number;
+      pageSize?: number;
+      q?: string;
+      sort?: string;
+      category?: string;
+      status?: string;
+      ownerId?: number; // NEW
+    }) {
       const qs = new URLSearchParams();
-      if (opts?.page) qs.set('page', String(opts.page));
-      if (opts?.pageSize) qs.set('pageSize', String(opts.pageSize));
+      qs.set('page', String(opts?.page ?? this.sharedPage));
+      qs.set('pageSize', String(opts?.pageSize ?? this.pageSize));
       if (opts?.q) qs.set('q', opts.q);
       if (opts?.sort) qs.set('sort', opts.sort);
       if (opts?.category) qs.set('category', opts.category);
-      if (opts?.status) qs.set('status', opts.status);
+      if (opts?.status) qs.set('status', opts.status!);
+      if (opts?.ownerId) qs.set('ownerId', String(opts.ownerId));
 
       const r = await fetch(`/api/collab/goals/shared?${qs.toString()}`, { headers: authHeaders() });
       if (!r.ok) throw new Error('Failed to load shared goals');
