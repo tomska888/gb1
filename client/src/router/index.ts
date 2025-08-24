@@ -13,7 +13,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/login',  name: 'Login',  component: Login,   meta: { requiresAuth: false } },
   { path: '/signup', name: 'Signup', component: Signup,  meta: { requiresAuth: false } },
   { path: '/goals',  name: 'Goals',  component: Goals,   meta: { requiresAuth: true  } },
-  { path: '/profile',name: 'Profile',component: Profile, meta: { requiresAuth: true  } },
+  { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } },
+  { path: '/shared', name: 'Shared', component: () => import('@/views/Shared.vue'), meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({

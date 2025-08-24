@@ -1,0 +1,34 @@
+<template>
+  <div>
+    <h2>Shared with me</h2>
+    <ul class="list-group">
+      <li v-for="g in collab.shared" :key="g.id" class="list-group-item">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h5 class="mb-1">{{ g.title }}</h5>
+            <small class="text-muted">Owner goal · Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}</small>
+            <CheckinsPanel :goalId="g.id" />
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="text-muted small">Page {{ collab.sharedPage }} / {{ collab.sharedPages }} · {{ collab.sharedTotal }} total</div>
+      <div class="btn-group">
+        <button class="btn btn-outline-secondary" :disabled="collab.sharedPage<=1" @click="prev">Prev</button>
+        <button class="btn btn-outline-secondary" :disabled="collab.sharedPage>=collab.sharedPages" @click="next">Next</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useCollabStore } from '../stores/collab.store'
+import CheckinsPanel from '../components/CheckinsPanel.vue'
+const collab = useCollabStore()
+function next(){ collab.listShared({ page: collab.sharedPage + 1 }) }
+function prev(){ collab.listShared({ page: collab.sharedPage - 1 }) }
+onMounted(() => collab.listShared())
+</script>

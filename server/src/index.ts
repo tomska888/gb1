@@ -5,6 +5,7 @@ import { db } from './config/database.js';
 import { sql } from 'kysely';
 import { authRouter } from './api/auth/auth.router.js';
 import { goalsRouter } from './api/goals/goals.router.js';
+import collabRouter from './api/collab/collab.router.js'
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRouter);
 app.use('/api/goals', goalsRouter);
+app.use('/api', collabRouter)
 
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
