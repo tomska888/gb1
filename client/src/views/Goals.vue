@@ -144,9 +144,13 @@
               <button v-if="goal.status !== 'completed'" class="btn btn-sm btn-success ms-2" @click="markCompleted(goal)">Complete</button>
               <button v-else class="btn btn-sm btn-outline-secondary ms-2" @click="reopen(goal)">Reopen</button>
             </div>
+
+            <!-- Check-ins panel -->
+            <CheckinsPanel :goalId="goal.id" />
           </div>
 
           <div class="ms-2 d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shareModal" @click="openShare(goal.id)">Share</button>
             <button class="btn btn-sm btn-outline-primary" @click="startEdit(goal)">Edit</button>
             <button class="btn btn-sm btn-outline-danger" @click="remove(goal.id)">Delete</button>
           </div>
@@ -169,6 +173,9 @@
     <div v-if="!goalStore.goals.length && !goalStore.loading" class="text-center text-muted mt-5">
       No goals in this list.
     </div>
+
+    <!-- Share modal -->
+    <ShareDialog :goalId="shareGoalId" />
   </div>
 </template>
 
@@ -176,12 +183,15 @@
 defineOptions({ name: 'GoalsView' })
 
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import ShareDialog from '../components/ShareDialog.vue'
+import CheckinsPanel from '../components/CheckinsPanel.vue'
 import { useToastStore } from '../stores/toast.store'
 import { useGoalStore, type Goal, type Status, type SortKey } from '../stores/goal.store'
 
 const toast = useToastStore()
 const goalStore = useGoalStore()
 const titleInput = ref<HTMLInputElement | null>(null)
+const shareGoalId = ref<number | undefined>(undefined)
 
 /* Form */
 const title = ref(''); const description = ref(''); const targetDate = ref<string | null>(null)
@@ -209,9 +219,6 @@ watch([status, sortKey, search, showFilters, categoryFilter], () => {
   localStorage.setItem('gb_showFilters', showFilters.value ? '1' : '0')
   localStorage.setItem('gb_cat', categoryFilter.value)
 })
-
-/* Clean old key from older build so it can't mislead */
-onMounted(() => { localStorage.removeItem('gb_filter') })
 
 /* Counters */
 const counters = ref({ all: 0, in_progress: 0, completed: 0, abandoned: 0 })
@@ -244,7 +251,6 @@ async function fetchList() {
     category: categoryFilter.value || undefined,
   })
 }
-/* React to filter changes immediately */
 watch([debouncedSearch, categoryFilter, sortKey], () => { goalStore.page = 1; fetchList(); loadCounters() })
 
 function nextPage() { if (goalStore.page < goalStore.totalPages) { goalStore.page += 1; fetchList() } }
@@ -254,6 +260,8 @@ onMounted(async () => { window.addEventListener('keydown', onKeyDown); await goa
 onUnmounted(() => { window.removeEventListener('keydown', onKeyDown) })
 
 /* Actions */
+function openShare(id: number) { shareGoalId.value = id }
+
 async function onSubmit() {
   try {
     if (editingId.value) {
