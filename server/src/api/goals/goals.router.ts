@@ -9,6 +9,7 @@ const router = Router()
 
 const toDateOrNull = (v: string | null | undefined): Date | null => (v ? new Date(v) : null)
 
+/* ------------ Schemas ------------ */
 const createGoalSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
@@ -37,6 +38,7 @@ const listQuerySchema = z.object({
   category: z.string().optional().default(''),
 })
 
+/* ------------ Create ------------ */
 router.post('/', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const body = createGoalSchema.parse(req.body)
@@ -62,6 +64,7 @@ router.post('/', authenticateToken, async (req, res, next): Promise<void> => {
   }
 })
 
+/* ------------ List (pagination + filters) ------------ */
 router.get('/', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const qp = listQuerySchema.parse(req.query)
@@ -72,12 +75,10 @@ router.get('/', authenticateToken, async (req, res, next): Promise<void> => {
       ? base
       : base.where('status', '=', qp.status as Exclude<typeof qp.status, 'all'>)
 
-    // CASTS: 'category' is a new nullable column not present in old DB typings
     const withCat = qp.category
       ? withStatus.where('category' as any, '=', qp.category)
       : withStatus
 
-    // CASTS: 'tags' is also new
     const withSearch = qp.q
       ? withCat.where(eb =>
           eb.or([
@@ -92,8 +93,8 @@ router.get('/', authenticateToken, async (req, res, next): Promise<void> => {
     switch (qp.sort) {
       case 'created_asc':  sorted = sorted.orderBy('created_at', 'asc'); break
       case 'created_desc': sorted = sorted.orderBy('created_at', 'desc'); break
-      case 'target_asc':   sorted = sorted.orderBy('target_date', 'asc'); break   // ← removed “nulls last”
-      case 'target_desc':  sorted = sorted.orderBy('target_date', 'desc'); break  // ← removed “nulls last”
+      case 'target_asc':   sorted = sorted.orderBy('target_date', 'asc'); break
+      case 'target_desc':  sorted = sorted.orderBy('target_date', 'desc'); break
       case 'title_asc':    sorted = sorted.orderBy('title', 'asc'); break
       case 'title_desc':   sorted = sorted.orderBy('title', 'desc'); break
     }
@@ -119,6 +120,7 @@ router.get('/', authenticateToken, async (req, res, next): Promise<void> => {
   }
 })
 
+/* ------------ Update ------------ */
 router.put('/:id', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params)
@@ -174,6 +176,7 @@ router.put('/:id', authenticateToken, async (req, res, next): Promise<void> => {
   }
 })
 
+/* ------------ Delete ------------ */
 router.delete('/:id', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params)
@@ -196,19 +199,60 @@ router.delete('/:id', authenticateToken, async (req, res, next): Promise<void> =
   }
 })
 
-// distinct categories
+/* ------------ Categories (distinct) ------------ */
 router.get('/categories', authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const rows = await db
       .selectFrom('goals')
-      .select('category' as any)               // ← cast for DB types
+      .select('category' as any)
       .distinct()
       .where('user_id', '=', req.userId!)
-      .where('category' as any, 'is not', null) // ← cast for DB types
-      .orderBy('category' as any, 'asc')        // ← cast for DB types
+      .where('category' as any, 'is not', null)
+      .orderBy('category' as any, 'asc')
       .execute()
 
     res.json((rows.map(r => (r as any).category).filter(Boolean)) as string[])
+  } catch (err) {
+    next(err)
+  }
+})
+
+/* ------------ Counters (for tabs) ------------ */
+router.get('/counters', authenticateToken, async (req, res, next): Promise<void> => {
+  try {
+    const q = (req.query.q as string) ?? ''
+    const category = (req.query.category as string) ?? ''
+
+    const base = db.selectFrom('goals').where('user_id', '=', req.userId!)
+
+    const withCat = category
+      ? base.where('category' as any, '=', category)
+      : base
+
+    const withSearch = q
+      ? withCat.where(eb =>
+          eb.or([
+            eb('title', 'ilike', `%${q}%`),
+            eb('description', 'ilike', `%${q}%`),
+            eb('tags' as any, 'ilike', `%${q}%`),
+          ])
+        )
+      : withCat
+
+    const rows = await withSearch
+      .select(['status'])
+      .select(({ fn }) => fn.count<number>('id').as('cnt'))
+      .groupBy('status')
+      .execute()
+
+    let in_progress = 0, completed = 0, abandoned = 0
+    for (const r of rows as unknown as Array<{ status: Status; cnt: number }>) {
+      if (r.status === 'in_progress') in_progress = r.cnt
+      if (r.status === 'completed')  completed = r.cnt
+      if (r.status === 'abandoned')  abandoned = r.cnt
+    }
+    const all = in_progress + completed + abandoned
+    res.json({ all, in_progress, completed, abandoned })
   } catch (err) {
     next(err)
   }
