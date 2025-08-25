@@ -117,10 +117,17 @@
     <ul class="list-group">
       <li v-for="goal in goalStore.goals" :key="goal.id" class="list-group-item">
         <div class="d-flex justify-content-between align-items-start">
-          <div>
+          <!-- Left: title + meta + checkins/chat -->
+          <div class="me-3 flex-grow-1">
             <div class="d-flex align-items-center gap-2">
-              <span v-if="goal.color" class="d-inline-block rounded-circle" :style="{ background: goal.color, width: '10px', height: '10px' }"></span>
-              <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">{{ goal.title }}</h5>
+              <span
+                v-if="goal.color"
+                class="d-inline-block rounded-circle"
+                :style="{ background: goal.color, width: '10px', height: '10px' }"
+              />
+              <h5 class="mb-1" :class="{ 'text-decoration-line-through': goal.status === 'completed' }">
+                {{ goal.title }}
+              </h5>
               <span v-if="isOverdue(goal)" class="badge bg-danger">Overdue</span>
               <span v-else-if="isDueSoon(goal)" class="badge bg-warning text-dark">Due soon</span>
               <span v-if="goal.category" class="badge bg-secondary">{{ goal.category }}</span>
@@ -133,26 +140,52 @@
               <small class="ms-2">Created at {{ formatDate(goal.createdAt) }}</small>
             </div>
 
-            <div class="mt-1">
-              <small class="text-muted">Status:</small>
-              <select class="form-select form-select-sm d-inline-block w-auto ms-1" :value="goal.status" @change="onStatusChange($event, goal)">
+            <!-- Unified check-in + chat panel -->
+            <CheckinsPanel :goalId="goal.id" />
+          </div>
+
+          <!-- Right: status + actions -->
+          <div class="ms-2 d-flex flex-column align-items-end gap-2" style="min-width: 220px">
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-muted small">Status:</span>
+              <select
+                class="form-select form-select-sm"
+                style="min-width: 140px"
+                :value="goal.status"
+                @change="onStatusChange($event, goal)"
+              >
                 <option value="in_progress">In progress</option>
                 <option value="completed">Completed</option>
                 <option value="abandoned">Abandoned</option>
               </select>
-
-              <button v-if="goal.status !== 'completed'" class="btn btn-sm btn-success ms-2" @click="markCompleted(goal)">Complete</button>
-              <button v-else class="btn btn-sm btn-outline-secondary ms-2" @click="reopen(goal)">Reopen</button>
+              <button
+                v-if="goal.status !== 'completed'"
+                class="btn btn-sm btn-success"
+                @click="markCompleted(goal)"
+              >
+                Complete
+              </button>
+              <button
+                v-else
+                class="btn btn-sm btn-outline-secondary"
+                @click="reopen(goal)"
+              >
+                Reopen
+              </button>
             </div>
 
-            <!-- Check-ins panel -->
-            <CheckinsPanel :goalId="goal.id" />
-          </div>
-
-          <div class="ms-2 d-flex gap-2">
-            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shareModal" @click="openShare(goal.id)">Share</button>
-            <button class="btn btn-sm btn-outline-primary" @click="startEdit(goal)">Edit</button>
-            <button class="btn btn-sm btn-outline-danger" @click="remove(goal.id)">Delete</button>
+            <div class="d-flex gap-2">
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="modal"
+                data-bs-target="#shareModal"
+                @click="openShare(goal.id)"
+              >
+                Share
+              </button>
+              <button class="btn btn-sm btn-outline-primary" @click="startEdit(goal)">Edit</button>
+              <button class="btn btn-sm btn-outline-danger" @click="remove(goal.id)">Delete</button>
+            </div>
           </div>
         </div>
       </li>

@@ -3,11 +3,7 @@
     <h2>Shared with me</h2>
 
     <ul class="list-group">
-      <li
-        v-for="g in collab.shared"
-        :key="g.id"
-        class="list-group-item"
-      >
+      <li v-for="g in collab.shared" :key="g.id" class="list-group-item">
         <div class="d-flex justify-content-between">
           <div class="w-100">
             <div class="d-flex align-items-center justify-content-between">
@@ -21,7 +17,7 @@
               Owner goal · Target: {{ g.target_date ? g.target_date.slice(0, 10) : '—' }}
             </small>
 
-            <!-- Compact: no status/% inputs. Respect permissions: 'view' cannot post. -->
+            <!-- Compact (no status/%), permissions 'view' blocks posting -->
             <CheckinsPanel :goalId="g.id" :compact="true" :permissions="g.permissions" />
           </div>
         </div>
@@ -42,7 +38,6 @@
 import { onMounted } from 'vue'
 import { useCollabStore } from '../stores/collab.store'
 import CheckinsPanel from '../components/CheckinsPanel.vue'
-
 const collab = useCollabStore()
 function next(){ collab.listShared({ page: collab.sharedPage + 1 }) }
 function prev(){ collab.listShared({ page: collab.sharedPage - 1 }) }
