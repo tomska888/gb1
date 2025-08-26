@@ -1,14 +1,15 @@
 <template>
   <div class="mt-2">
-    <!-- One compact row: status/% (hidden in compact/view-only), quick message, single Send, Refresh -->
-    <div class="d-flex flex-wrap align-items-end gap-2 mb-2">
-      <!-- Hide status/% for buddy compact OR when view-only -->
-      <template v-if="!compact && canPost">
-        <select v-model="status" class="form-select form-select-sm" style="max-width:160px">
+    <!-- Single composer row -->
+    <div v-if="canPost" class="d-flex gap-2 align-items-center mb-2">
+      <!-- Owner-only status + % -->
+      <template v-if="isOwner">
+        <select v-model="status" class="form-select form-select-sm" style="max-width: 160px">
           <option value="on_track">On track</option>
           <option value="blocked">Blocked</option>
           <option value="done">Done</option>
         </select>
+
         <input
           v-model.number="progress"
           type="number"
@@ -20,47 +21,50 @@
         />
       </template>
 
-      <!-- Single bigger input that doubles as the chat message and/or check-in note -->
+      <!-- One large input for both cases -->
       <input
-        v-model="message"
-        class="form-control form-control-sm flex-grow-1"
-        placeholder="Quick check-in note or message…"
-        :disabled="!canPost"
-        @keyup.enter="sendCombined"
+        v-model="text"
+        class="form-control form-control-sm"
+        :placeholder="isOwner ? 'Quick check-in note or message…' : 'Quick message…'"
+        @keyup.enter="send"
       />
 
-      <button class="btn btn-sm btn-outline-primary" :disabled="!canPost" @click="sendCombined">
+      <button
+        class="btn btn-sm btn-outline-primary"
+        :disabled="sendDisabled"
+        @click="send"
+      >
         Send
       </button>
-      <button class="btn btn-sm btn-outline-secondary" @click="reloadAll">Refresh</button>
+
+      <button class="btn btn-sm btn-outline-secondary" @click="reload">Refresh</button>
     </div>
 
-    <!-- Combined stream (newest first). We include ALL check-ins and either last N or all messages. -->
+    <!-- Messages (newest first). Collapsible to last few. -->
     <ul class="list-group list-group-flush">
-      <li v-for="item in combinedVisible" :key="item._key" class="list-group-item px-0">
-        <!-- Chat messages -->
-        <template v-if="item._type === 'message'">
-          <span class="badge me-2" :class="isMe(item) ? 'bg-primary' : 'bg-secondary'">
-            {{ isMe(item) ? 'Me' : 'Buddy' }}
+      <li
+        v-for="m in visibleMsgs"
+        :key="m.id"
+        class="list-group-item px-0 d-flex align-items-start justify-content-between"
+      >
+        <div class="me-2">
+          <span class="badge" :class="isMe(m) ? 'bg-primary' : 'bg-secondary'">
+            {{ isMe(m) ? 'Me' : 'Buddy' }}
           </span>
-          <span>{{ item.body }}</span>
-          <small class="text-muted ms-2">{{ format(item.created_at) }}</small>
-        </template>
 
-        <!-- Check-ins -->
-        <template v-else>
-          <span class="badge bg-light text-dark border me-2">{{ item.status }}</span>
-          <span v-if="item.progress != null" class="badge bg-info text-dark me-2">{{ item.progress }}%</span>
-          <span>{{ item.note }}</span>
-          <small class="text-muted ms-2">{{ format(item.created_at) }}</small>
-        </template>
+          <!-- When owner sent a check-in, we echoed a chat line too; show status/% as badges on that line if present -->
+          <span v-if="m._status" class="badge bg-light text-dark border ms-2">{{ m._status }}</span>
+          <span v-if="m._progress != null" class="badge bg-info text-dark ms-1">{{ m._progress }}%</span>
+
+          <span class="ms-2">{{ m.body }}</span>
+          <small class="text-muted ms-2">{{ new Date(m.created_at).toLocaleString() }}</small>
+        </div>
       </li>
     </ul>
 
-    <!-- Collapser for long message lists (check-ins are always shown) -->
-    <div v-if="messages.length > maxMessages" class="mt-2">
-      <button class="btn btn-link p-0" @click="showAllMessages = !showAllMessages">
-        {{ showAllMessages ? 'Show fewer messages' : `Show all messages (${messages.length})` }}
+    <div v-if="msgs.length > MAX_VISIBLE" class="mt-2">
+      <button class="btn btn-link p-0" @click="toggleShowAll">
+        {{ showAll ? 'Show less' : `Show more (${msgs.length - MAX_VISIBLE} older…)` }}
       </button>
     </div>
   </div>
@@ -71,107 +75,123 @@ import { defineComponent, computed, onMounted, ref, watch } from 'vue'
 import { useCollabStore, type CheckinStatus } from '../stores/collab.store'
 import { useAuthStore } from '../stores/auth.store'
 
+/**
+ * This component renders ONE feed (messages) to avoid duplicates.
+ * Owner: must provide %; we send check-in (to keep history) + echo a single chat message.
+ * Buddy: sends only a chat message.
+ */
 export default defineComponent({
   name: 'CheckinsPanel',
   props: {
     goalId: { type: Number, required: true },
-    /** compact=true for buddy side – hides status/% */
+    /** compact=true is what you use on “Shared with me”. We still derive posting rights from `permissions`. */
     compact: { type: Boolean, default: false },
-    /** from /collab/goals/shared: 'view' blocks posting, 'checkin' allows */
+    /** Buddy permissions when rendered in the shared list. Omitted for owner’s own goals. */
     permissions: { type: String as () => 'view' | 'checkin' | undefined, default: undefined },
   },
-  setup(props) {
+  setup (props) {
     const collab = useCollabStore()
     const auth = useAuthStore()
 
-    // Inputs
-    const status = ref<CheckinStatus>('on_track')
-    const progress = ref<number | null>(null)
-    const message = ref('')
+    // ---- form state
+    const status   = ref<CheckinStatus>('on_track')   // owner only
+    const progress = ref<number | null>(null)         // owner only
+    const text     = ref('')                          // big input (both roles)
 
-    // Data
-    const checkins = computed(() => collab.checkins[props.goalId] ?? [])
-    const messages = computed(() => collab.messages[props.goalId] ?? [])
-
-    // Posting allowed?
-    const canPost = computed(() => {
-      // Owners (Goals page) don't pass permissions -> allowed
-      if (!props.permissions) return true
-      return props.permissions === 'checkin'
+    // ---- who am I in this context?
+    const isOwner  = computed(() => !props.permissions) // owner rendering doesn't pass permissions
+    const canPost  = computed(() => {
+      if (props.permissions === 'view') return false     // buddy is view-only
+      return true                                        // owner OR buddy with 'checkin'
     })
 
-    // Me/Buddy check by email (preferred)
-    const myEmail = computed(() => (auth.userEmail || '').toLowerCase())
-    function isMe(m: { email?: string }) {
-      return Boolean(m.email) && m.email!.toLowerCase() === myEmail.value
-    }
+    // ---- feed (messages only; newest first from API)
+    const msgs = computed(() => collab.messages[props.goalId] ?? [])
 
-    // Collapser for messages
-    const maxMessages = 5
-    const showAllMessages = ref(false)
-    const visibleMessages = computed(() =>
-      showAllMessages.value ? messages.value : messages.value.slice(0, maxMessages)
-    )
+    // Optional collapse to last few messages
+    const MAX_VISIBLE = 4
+    const showAll = ref(false)
+    const visibleMsgs = computed(() => showAll.value ? msgs.value : msgs.value.slice(0, MAX_VISIBLE))
+    function toggleShowAll () { showAll.value = !showAll.value }
 
-    // Merge: all check-ins + visible messages, newest firsttT
-    const combinedVisible = computed(() => {
-      const a = checkins.value.map((c: any) => ({ ...c, _type: 'checkin', _key: `c-${c.id}` }))
-      const b = visibleMessages.value.map((m: any) => ({ ...m, _type: 'message', _key: `m-${m.id}` }))
-      return [...a, ...b].sort(
-        (x: any, y: any) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime()
-      )
-    })
-
-    function format(s: string) { return new Date(s).toLocaleString() }
-
-    async function reloadAll() {
-      await Promise.all([
-        collab.listCheckins(props.goalId),
-        collab.listMessages(props.goalId),
-      ])
-    }
-
-    // Single send: create a check-in (with status/% and optional note) AND post a chat message (if any)
-    async function sendCombined() {
-      if (!canPost.value) return
-
-      // 1) check-in
-      await collab.addCheckin(props.goalId, {
-        status: status.value,
-        progress: progress.value ?? null,
-        // Save the same message text as the check-in note (or empty)
-        note: message.value.trim() || undefined,
-      })
-
-      // 2) chat message (only if non-empty)
-      if (message.value.trim()) {
-        await collab.addMessage(props.goalId, message.value.trim())
+    // ---- me/buddy badge
+    function isMe (m: { sender_id?: number; email?: string }) {
+      if (typeof (auth as any).userId === 'number' && typeof m.sender_id === 'number') {
+        return m.sender_id === (auth as any).userId
       }
-
-      // reset inputs
-      progress.value = null
-      message.value = ''
-      status.value = 'on_track'
-
-      // refresh streams
-      await reloadAll()
+      return !!(m.email && auth.userEmail && m.email.toLowerCase() === auth.userEmail.toLowerCase())
     }
 
-    onMounted(reloadAll)
-    watch(() => props.goalId, reloadAll)
+    // ---- load just messages (we no longer render the raw check-in list)
+    async function reload () {
+      await collab.listMessages(props.goalId)
+    }
+
+    // ---- sending
+    const sendDisabled = computed(() => {
+      if (!canPost.value) return true
+      if (isOwner.value) {
+        // owner must choose a %; text can be empty
+        return progress.value == null || Number.isNaN(progress.value)
+      } else {
+        // buddy must write something
+        return !text.value.trim()
+      }
+    })
+
+    async function send () {
+      if (sendDisabled.value) return
+
+      if (isOwner.value) {
+        // 1) store the check-in (history)
+        await collab.addCheckin(props.goalId, {
+          status: status.value,
+          progress: progress.value,
+          note: text.value.trim() || null,
+        })
+
+        // 2) echo a single chat line that includes the note;
+        //    we don’t want a second visual line for the raw check-in record.
+        //    To help the UI show status/% badges on this chat line, we include
+        //    lightweight hints (not persisted – added client-side after post).
+        await collab.addMessage(props.goalId, text.value.trim())
+
+        // reload messages and decorate the newest one with the badges
+        await reload()
+        const latest = (collab.messages[props.goalId] ?? [])[0]
+        if (latest) {
+          // decorate in-memory; harmless if structure changes
+          (latest as any)._status = status.value
+          ;(latest as any)._progress = progress.value
+        }
+
+        // reset owner form
+        text.value = ''
+        progress.value = null
+        status.value = 'on_track'
+      } else {
+        // buddy: only a chat message
+        await collab.addMessage(props.goalId, text.value.trim())
+        await reload()
+        text.value = ''
+      }
+    }
+
+    onMounted(reload)
+    watch(() => props.goalId, reload)
 
     return {
-      // inputs
-      status, progress, message,
-      // lists
-      messages, combinedVisible,
-      // flags
-      canPost, compact: props.compact,
-      // collapser
-      maxMessages, showAllMessages,
+      // state
+      status, progress, text,
+      // roles
+      isOwner, canPost,
+      // feed
+      msgs, MAX_VISIBLE, visibleMsgs, showAll, toggleShowAll,
       // helpers
-      isMe, format, reloadAll, sendCombined,
+      isMe, reload,
+      // send
+      send, sendDisabled,
     }
-  },
+  }
 })
 </script>
