@@ -113,7 +113,7 @@ export default defineComponent({
       showAllMessages.value ? messages.value : messages.value.slice(0, maxMessages)
     )
 
-    // Merge: all check-ins + visible messages, newest firstt
+    // Merge: all check-ins + visible messages, newest firsttT
     const combinedVisible = computed(() => {
       const a = checkins.value.map((c: any) => ({ ...c, _type: 'checkin', _key: `c-${c.id}` }))
       const b = visibleMessages.value.map((m: any) => ({ ...m, _type: 'message', _key: `m-${m.id}` }))
