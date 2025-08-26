@@ -52,7 +52,7 @@
             {{ isMe(m) ? 'Me' : 'Buddy' }}
           </span>
 
-          <!-- When owner sent a check-in, we echoed a chat line too; show status/% as badges on that line if present -->
+          <!-- optional client-side badges -->
           <span v-if="m._status" class="badge bg-light text-dark border ms-2">{{ m._status }}</span>
           <span v-if="m._progress != null" class="badge bg-info text-dark ms-1">{{ m._progress }}%</span>
 
@@ -74,19 +74,13 @@
 import { defineComponent, computed, onMounted, ref, watch } from 'vue'
 import { useCollabStore, type CheckinStatus } from '../stores/collab.store'
 import { useAuthStore } from '../stores/auth.store'
+import type { Message } from '../stores/collab.store'
 
-/**
- * This component renders ONE feed (messages) to avoid duplicates.
- * Owner: must provide %; we send check-in (to keep history) + echo a single chat message.
- * Buddy: sends only a chat message.
- */
 export default defineComponent({
   name: 'CheckinsPanel',
   props: {
     goalId: { type: Number, required: true },
-    /** compact=true is what you use on “Shared with me”. We still derive posting rights from `permissions`. */
     compact: { type: Boolean, default: false },
-    /** Buddy permissions when rendered in the shared list. Omitted for owner’s own goals. */
     permissions: { type: String as () => 'view' | 'checkin' | undefined, default: undefined },
   },
   setup (props) {
@@ -94,27 +88,27 @@ export default defineComponent({
     const auth = useAuthStore()
 
     // ---- form state
-    const status   = ref<CheckinStatus>('on_track')   // owner only
-    const progress = ref<number | null>(null)         // owner only
-    const text     = ref('')                          // big input (both roles)
+    const status   = ref<CheckinStatus>('on_track')
+    const progress = ref<number | null>(null)
+    const text     = ref('')
 
-    // ---- who am I in this context?
-    const isOwner  = computed(() => !props.permissions) // owner rendering doesn't pass permissions
+    // ---- roles
+    const isOwner  = computed(() => !props.permissions)
     const canPost  = computed(() => {
-      if (props.permissions === 'view') return false     // buddy is view-only
-      return true                                        // owner OR buddy with 'checkin'
+      if (props.permissions === 'view') return false
+      return true
     })
 
-    // ---- feed (messages only; newest first from API)
+    // ---- messages (newest first)
     const msgs = computed(() => collab.messages[props.goalId] ?? [])
 
-    // Optional collapse to last few messages
+    // collapse to last few
     const MAX_VISIBLE = 4
     const showAll = ref(false)
     const visibleMsgs = computed(() => showAll.value ? msgs.value : msgs.value.slice(0, MAX_VISIBLE))
     function toggleShowAll () { showAll.value = !showAll.value }
 
-    // ---- me/buddy badge
+    // who is me?
     function isMe (m: { sender_id?: number; email?: string }) {
       if (typeof (auth as any).userId === 'number' && typeof m.sender_id === 'number') {
         return m.sender_id === (auth as any).userId
@@ -122,19 +116,17 @@ export default defineComponent({
       return !!(m.email && auth.userEmail && m.email.toLowerCase() === auth.userEmail.toLowerCase())
     }
 
-    // ---- load just messages (we no longer render the raw check-in list)
     async function reload () {
       await collab.listMessages(props.goalId)
     }
 
-    // ---- sending
     const sendDisabled = computed(() => {
       if (!canPost.value) return true
       if (isOwner.value) {
-        // owner must choose a %; text can be empty
+        // owner must pick %
         return progress.value == null || Number.isNaN(progress.value)
       } else {
-        // buddy must write something
+        // buddy must type
         return !text.value.trim()
       }
     })
@@ -143,34 +135,31 @@ export default defineComponent({
       if (sendDisabled.value) return
 
       if (isOwner.value) {
-        // 1) store the check-in (history)
+        // 1) create check-in (history)
         await collab.addCheckin(props.goalId, {
           status: status.value,
           progress: progress.value,
-          note: text.value.trim() || null,
+          // FIX: send undefined (not null) when empty
+          note: (text.value.trim() || undefined),
         })
 
-        // 2) echo a single chat line that includes the note;
-        //    we don’t want a second visual line for the raw check-in record.
-        //    To help the UI show status/% badges on this chat line, we include
-        //    lightweight hints (not persisted – added client-side after post).
+        // 2) single chat line
         await collab.addMessage(props.goalId, text.value.trim())
 
-        // reload messages and decorate the newest one with the badges
+        // Reload and decorate newest chat line with badges
         await reload()
-        const latest = (collab.messages[props.goalId] ?? [])[0]
+        const latest = (collab.messages[props.goalId] ?? [])[0] as Message | undefined
         if (latest) {
-          // decorate in-memory; harmless if structure changes
-          (latest as any)._status = status.value
-          ;(latest as any)._progress = progress.value
+          latest._status = status.value
+          latest._progress = progress.value
         }
 
-        // reset owner form
+        // reset form
         text.value = ''
         progress.value = null
         status.value = 'on_track'
       } else {
-        // buddy: only a chat message
+        // buddy: chat only
         await collab.addMessage(props.goalId, text.value.trim())
         await reload()
         text.value = ''
@@ -181,15 +170,10 @@ export default defineComponent({
     watch(() => props.goalId, reload)
 
     return {
-      // state
       status, progress, text,
-      // roles
       isOwner, canPost,
-      // feed
       msgs, MAX_VISIBLE, visibleMsgs, showAll, toggleShowAll,
-      // helpers
       isMe, reload,
-      // send
       send, sendDisabled,
     }
   }

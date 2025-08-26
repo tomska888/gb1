@@ -33,6 +33,8 @@ export interface Message {
   created_at: string;
   sender_id: number;
   email: string;
+  _status?: 'on_track' | 'blocked' | 'done';
+  _progress?: number | null;
 }
 
 export interface ShareRow {
