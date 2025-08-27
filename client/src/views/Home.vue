@@ -1,276 +1,278 @@
 <template>
-  <div class="container py-4">
-
-    <!-- Hero + counters -->
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
-      <div>
-        <h1 class="mb-1">Welcome to GoalBuddy</h1>
-        <p class="text-muted mb-0">Set goals. Share with a buddy. Keep moving.</p>
-      </div>
-
-      <div class="d-flex gap-2 flex-wrap">
-        <span class="badge bg-secondary">All {{ counters.all }}</span>
-        <span class="badge bg-primary">Active {{ counters.in_progress }}</span>
-        <span class="badge bg-success">Completed {{ counters.completed }}</span>
-        <span class="badge bg-dark">Abandoned {{ counters.abandoned }}</span>
+  <div class="container my-4">
+    <!-- Hero -->
+    <div class="p-4 p-md-5 mb-4 bg-light rounded-3">
+      <div class="container-fluid py-2">
+        <h1 class="display-6 fw-semibold">Welcome back 👋</h1>
+        <p class="col-md-8 fs-6 text-muted mb-0">
+          Track your goals, share with a buddy, and keep momentum with quick check-ins.
+        </p>
       </div>
     </div>
 
-    <!-- Quick Add -->
-    <section class="card mb-4">
-      <div class="card-body">
-        <h2 class="h5 mb-3">Quick add a goal</h2>
-        <form @submit.prevent="onQuickAdd">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Title</label>
-              <input v-model="qa.title" type="text" class="form-control" placeholder="New goal title" required />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Target date</label>
-              <input v-model="qa.targetDate" type="date" class="form-control" />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Category</label>
-              <input v-model="qa.category" list="gb-categories" class="form-control" placeholder="e.g. Health" />
-              <datalist id="gb-categories">
-                <option v-for="c in goalStore.categories" :key="c" :value="c" />
-              </datalist>
-            </div>
-            <div class="col-md-1">
-              <label class="form-label">Color</label>
-              <input v-model="qa.color" type="color" class="form-control form-control-color" />
-            </div>
-            <div class="col-md-1 d-grid">
-              <button class="btn btn-primary">Add</button>
-            </div>
-          </div>
-          <div class="row g-2 mt-2">
-            <div class="col-md-6">
-              <label class="form-label">Tags (comma-separated)</label>
-              <input v-model="qa.tags" class="form-control" placeholder="work, cardio, reading" />
-            </div>
-          </div>
-        </form>
-      </div>
-    </section>
-
+    <!-- 3-up preview: Active / Shared / This Week -->
     <div class="row g-3">
-
-      <!-- My active goals -->
-      <section class="col-lg-6">
+      <!-- My Active Goals -->
+      <div class="col-lg-4">
         <div class="card h-100">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h2 class="h5 mb-0">My active goals</h2>
-              <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-secondary" @click="exportActiveCsv" :disabled="!activeGoals.length">Export CSV</button>
-                <router-link to="/goals" class="btn btn-sm btn-outline-primary">See all</router-link>
-              </div>
-            </div>
-
-            <div v-if="!activeGoals.length" class="text-muted">No active goals yet.</div>
-
-            <ul class="list-group">
-              <li v-for="g in activeGoals" :key="g.id" class="list-group-item">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    <div class="d-flex align-items-center gap-2">
-                      <span v-if="g.color" class="d-inline-block rounded-circle" :style="{ background: g.color, width: '10px', height: '10px' }"></span>
-                      <strong>{{ g.title }}</strong>
-                      <span v-if="isOverdue(g)" class="badge bg-danger">Overdue</span>
-                      <span v-else-if="isDueSoon(g)" class="badge bg-warning text-dark">Due soon</span>
-                      <span v-if="g.category" class="badge bg-secondary">{{ g.category }}</span>
-                    </div>
-                    <small class="text-muted">
-                      Target: {{ g.targetDate ? g.targetDate.slice(0,10) : '—' }} ·
-                      Created: {{ fmt(g.createdAt) }}
-                    </small>
-                  </div>
-                  <router-link :to="{ name:'Goals' }" class="btn btn-sm btn-outline-secondary">Open</router-link>
-                </div>
-              </li>
-            </ul>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>My active goals</span>
+            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Goals' }">View all</router-link>
           </div>
-        </div>
-      </section>
-
-      <!-- Shared with me (latest) -->
-      <section class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h2 class="h5 mb-0">Shared with me</h2>
-              <router-link to="/shared" class="btn btn-sm btn-outline-primary">Open shared</router-link>
-            </div>
-
-            <div v-if="!sharedLatest.length" class="text-muted">No shared goals yet.</div>
-
-            <ul class="list-group">
-              <li v-for="g in sharedLatest" :key="g.id" class="list-group-item">
-                <div class="d-flex justify-content-between">
-                  <div>
+          <ul class="list-group list-group-flush">
+            <li v-for="g in activePreview" :key="g.id" class="list-group-item">
+              <div class="d-flex align-items-start justify-content-between">
+                <div class="me-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <span
+                      v-if="g.color"
+                      class="d-inline-block rounded-circle"
+                      :style="{ background: g.color, width: '10px', height: '10px' }"
+                    />
                     <strong>{{ g.title }}</strong>
-                    <span v-if="g.status==='completed'" class="badge bg-success ms-2">Completed</span>
-                    <div class="small text-muted">
-                      Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}
-                    </div>
+                    <span v-if="g.category" class="badge bg-secondary">{{ g.category }}</span>
                   </div>
-                  <router-link to="/shared" class="btn btn-sm btn-outline-secondary">Open</router-link>
+                  <small class="text-muted d-block">
+                    Target: {{ g.targetDate ? g.targetDate.slice(0,10) : '—' }}
+                  </small>
                 </div>
-              </li>
-            </ul>
+              </div>
+            </li>
+            <li v-if="!activePreview.length" class="list-group-item text-muted">
+              No active goals yet.
+            </li>
+          </ul>
+          <div class="card-footer d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
+            <button class="btn btn-sm btn-outline-dark ms-auto" @click="exportActiveCsv">Export CSV</button>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- Week outlook -->
-      <section class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <h2 class="h5">This week</h2>
-            <div v-if="!weekOutlook.length" class="text-muted">No targets in the next 7 days.</div>
-            <div class="table-responsive" v-else>
-              <table class="table table-sm align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Goal</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="g in weekOutlook" :key="g.id">
-                    <td>{{ g.targetDate?.slice(0,10) }}</td>
-                    <td>{{ g.title }}</td>
-                    <td>{{ g.category || '—' }}</td>
-                    <td><span class="badge bg-primary">Active</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+      <!-- Shared with me -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Shared with me</span>
+            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Shared' }">Open</router-link>
+          </div>
+          <ul class="list-group list-group-flush">
+            <li v-for="g in sharedPreview" :key="g.id" class="list-group-item">
+              <div class="d-flex align-items-start justify-content-between">
+                <div class="me-2">
+                  <strong>{{ g.title }}</strong>
+                  <div class="small text-muted">
+                    Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}
+                    <span v-if="g.status === 'completed'" class="badge bg-success ms-2">Completed</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li v-if="!sharedPreview.length" class="list-group-item text-muted">
+              Nothing shared with you yet.
+            </li>
+          </ul>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- Shortcuts -->
-      <section class="col-12">
-        <div class="card">
-          <div class="card-body">
-            <h2 class="h5">Tips & shortcuts</h2>
-            <ul class="mb-0">
-              <li><kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>/<kbd>4</kbd> switch status tabs on Goals</li>
-              <li><kbd>/</kbd> shows & focuses search on Goals</li>
-              <li><kbd>n</kbd> focuses “New goal title”</li>
-              <li>Install as app (PWA): Browser menu → <em>Install</em></li>
-            </ul>
+      <!-- This Week -->
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header">This week</div>
+          <ul class="list-group list-group-flush">
+            <li v-for="g in thisWeek" :key="g.id" class="list-group-item">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <strong>{{ g.title }}</strong>
+                  <div class="small text-muted">
+                    Due {{ g.targetDate ? g.targetDate.slice(0,10) : '—' }}
+                  </div>
+                </div>
+                <span class="badge bg-warning text-dark" v-if="isDueSoon(g)">Due soon</span>
+              </div>
+            </li>
+            <li v-if="!thisWeek.length" class="list-group-item text-muted">
+              No goals due this week.
+            </li>
+          </ul>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
 
+    <!-- Quick add a goal (moved here, below the three sections) -->
+    <div class="card my-4">
+      <div class="card-header">Quick add a goal</div>
+      <form @submit.prevent="quickAdd" class="card-body">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Title</label>
+            <input v-model="qTitle" class="form-control" placeholder="e.g. Run 5k" required />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Description</label>
+            <input v-model="qDesc" class="form-control" placeholder="Optional description" />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Target date</label>
+            <input v-model="qTarget" type="date" class="form-control" />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Category</label>
+            <input v-model="qCategory" class="form-control" placeholder="e.g. Health" />
+          </div>
+          <div class="col-md-1">
+            <label class="form-label">Color</label>
+            <input v-model="qColor" type="color" class="form-control form-control-color" />
+          </div>
+          <div class="col-md-1 d-grid">
+            <button class="btn btn-primary" type="submit">Add</button>
+          </div>
+        </div>
+        <div class="row g-2 mt-2">
+          <div class="col-md-6">
+            <label class="form-label">Tags (comma-separated)</label>
+            <input v-model="qTags" class="form-control" placeholder="work, cardio, reading" />
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tips & shortcuts -->
+    <div class="card">
+      <div class="card-header">Tips & shortcuts</div>
+      <div class="card-body">
+        <ul class="mb-0">
+          <li>Press <kbd>/</kbd> to focus search in Goals, <kbd>n</kbd> to focus “Title”.</li>
+          <li>Use <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>/<kbd>4</kbd> to jump All/Active/Completed/Abandoned.</li>
+          <li>Share a goal with a buddy to unlock quick check-ins and messaging.</li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGoalStore, type Goal } from '../stores/goal.store'
-import { useCollabStore } from '../stores/collab.store'
-import { useToastStore } from '../stores/toast.store'
+import type { SharedGoal } from '../stores/collab.store'
 
+// Stores
 const goalStore = useGoalStore()
-const collab = useCollabStore()
-const toast = useToastStore()
 
-/* ---------- counters (reuse pattern from Goals.vue) ---------- */
-const counters = ref({ all: 0, in_progress: 0, completed: 0, abandoned: 0 })
-function headers(): HeadersInit {
-  const h: Record<string,string> = { 'Content-Type': 'application/json' }
-  const t = localStorage.getItem('token'); if (t) h.Authorization = `Bearer ${t}`
+// Local previews
+const activePreview = ref<Goal[]>([])
+const sharedPreview = ref<SharedGoal[]>([])
+
+// Quick add form
+const qTitle = ref('')
+const qDesc = ref('')
+const qTarget = ref<string | null>(null)
+const qCategory = ref('')
+const qTags = ref('')
+const qColor = ref('#3b82f6')
+
+// Helpers
+function makeHeaders(): HeadersInit {
+  const h: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('token')
+  if (token) h.Authorization = `Bearer ${token}`
   return h
 }
-async function loadCounters() {
-  const r = await fetch('/api/goals/counters', { headers: headers() })
-  if (r.ok) counters.value = await r.json()
-}
 
-/* ---------- quick add form ---------- */
-const qa = ref({
-  title: '',
-  targetDate: null as string | null,
-  category: '',
-  tags: '',
-  color: '#3b82f6',
-})
-async function onQuickAdd() {
-  try {
-    await goalStore.addGoal({
-      title: qa.value.title,
-      targetDate: qa.value.targetDate ?? null,
-      category: qa.value.category || undefined,
-      tags: qa.value.tags || undefined,
-      color: qa.value.color || undefined,
-    })
-    toast.success('Goal added')
-    qa.value = { title: '', targetDate: null, category: '', tags: '', color: '#3b82f6' }
-    await Promise.all([refreshActive(), loadCounters()])
-  } catch (e) {
-    toast.error(e instanceof Error ? e.message : 'Failed to add goal')
+async function loadActivePreview() {
+  const qs = new URLSearchParams({
+    page: '1',
+    pageSize: '50',
+    status: 'in_progress',
+    sort: 'created_desc'
+  })
+  const res = await fetch(`/api/goals?${qs.toString()}`, { headers: makeHeaders() })
+  if (res.ok) {
+    const data = await res.json()
+    activePreview.value = (data?.data ?? []).slice(0, 5)
+  } else {
+    activePreview.value = []
   }
 }
 
-/* ---------- lists ---------- */
-async function refreshActive() {
-  // small page pull of active goals sorted by closest target
-  await goalStore.loadGoals({
-    page: 1,
-    pageSize: 12,
-    status: 'in_progress',
-    sort: 'target_asc',
+async function loadSharedPreview() {
+  const qs = new URLSearchParams({ page: '1', pageSize: '5' })
+  const res = await fetch(`/api/collab/goals/shared?${qs.toString()}`, { headers: makeHeaders() })
+  if (res.ok) {
+    const data = await res.json()
+    sharedPreview.value = data?.data ?? []
+  } else {
+    sharedPreview.value = []
+  }
+}
+
+function todayMidnight() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+function inDaysMidnight(days: number) {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + days)
+  return d.getTime()
+}
+
+const thisWeek = computed(() =>
+  activePreview.value
+    .filter(g => g.targetDate && g.status === 'in_progress')
+    .filter(g => {
+      const t = new Date(g.targetDate as string).getTime()
+      return t >= todayMidnight() && t <= inDaysMidnight(7)
+    })
+    .slice(0, 5)
+)
+
+function isDueSoon(g: Goal) {
+  if (!g.targetDate) return false
+  const t = new Date(g.targetDate).getTime()
+  return t >= todayMidnight() && t <= inDaysMidnight(3)
+}
+
+async function quickAdd() {
+  await goalStore.addGoal({
+    title: qTitle.value,
+    description: qDesc.value || undefined,
+    targetDate: qTarget.value ?? null,
+    category: qCategory.value || undefined,
+    tags: qTags.value || undefined,
+    color: qColor.value || undefined
   })
+  // reset
+  qTitle.value = ''
+  qDesc.value = ''
+  qTarget.value = null
+  qCategory.value = ''
+  qTags.value = ''
+  qColor.value = '#3b82f6'
+  // refresh previews
+  await refreshAll()
 }
 
-async function refreshShared() {
-  await collab.listShared({ page: 1, pageSize: 6, sort: 'created_desc' })
+async function refreshAll() {
+  await Promise.all([loadActivePreview(), loadSharedPreview()])
 }
 
-const activeGoals = computed<Goal[]>(() => goalStore.goals)
-const sharedLatest = computed(() => collab.shared)
-
-/* ---------- week outlook (next 7 days from active goals we loaded) ---------- */
-const weekOutlook = computed<Goal[]>(() => {
-  const now = new Date()
-  const in7 = new Date(now.getTime() + 7 * 86400000)
-  return activeGoals.value
-    .filter(g => g.targetDate && new Date(g.targetDate) >= startOfDay(now) && new Date(g.targetDate) <= in7)
-    .sort((a, b) => (a.targetDate ?? '').localeCompare(b.targetDate ?? ''))
-})
-
-/* ---------- helpers ---------- */
-function fmt(s: string) { return new Date(s).toLocaleString() }
-function startOfDay(d: Date){ const x=new Date(d); x.setHours(0,0,0,0); return x }
-function todayMidnight(){ const d=new Date(); d.setHours(0,0,0,0); return d.getTime() }
-function isOverdue(g: Goal){ if(!g.targetDate || g.status==='completed') return false; return new Date(g.targetDate).getTime() < todayMidnight() }
-function isDueSoon(g: Goal){
-  if(!g.targetDate || g.status==='completed') return false
-  const t=new Date(g.targetDate).getTime(), today=todayMidnight(), inThree=today+3*86400000
-  return t>=today && t<=inThree
-}
-
-/* ---------- CSV export (active goals currently shown) ---------- */
+/** CSV exporter without replaceAll (uses regex) */
 function exportActiveCsv() {
   const rows = [
     ['id','title','status','target_date','category','tags','created_at'],
-    ...activeGoals.value.map(g => [
+    ...activePreview.value.map(g => [
       g.id, g.title, g.status, g.targetDate ?? '', g.category ?? '', g.tags ?? '', g.createdAt
     ])
   ]
-
-  const csv = rows
-    .map(r => r.map(csvEscape).join(','))
-    .join('\n')
-
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -281,17 +283,10 @@ function exportActiveCsv() {
   a.remove()
   URL.revokeObjectURL(url)
 }
-
 function csvEscape(value: unknown): string {
-  // Escape quotes by doubling them; wrap the field in quotes.
   const s = String(value ?? '')
   return `"${s.replace(/"/g, '""')}"`
 }
 
-
-/* ---------- mount ---------- */
-onMounted(async () => {
-  await goalStore.loadCategories()
-  await Promise.all([refreshActive(), refreshShared(), loadCounters()])
-})
+onMounted(refreshAll)
 </script>
