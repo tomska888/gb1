@@ -19,16 +19,15 @@
             <span>My active goals</span>
             <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Goals' }">View all</router-link>
           </div>
+
           <ul class="list-group list-group-flush">
+            <li v-if="goalStore.loading" class="list-group-item text-muted">Loading…</li>
             <li v-for="g in activePreview" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-start justify-content-between">
                 <div class="me-2">
                   <div class="d-flex align-items-center gap-2">
-                    <span
-                      v-if="g.color"
-                      class="d-inline-block rounded-circle"
-                      :style="{ background: g.color, width: '10px', height: '10px' }"
-                    />
+                    <span v-if="g.color" class="d-inline-block rounded-circle"
+                          :style="{ background: g.color, width: '10px', height: '10px' }" />
                     <strong>{{ g.title }}</strong>
                     <span v-if="g.category" class="badge bg-secondary">{{ g.category }}</span>
                   </div>
@@ -38,10 +37,11 @@
                 </div>
               </div>
             </li>
-            <li v-if="!activePreview.length" class="list-group-item text-muted">
+            <li v-if="!activePreview.length && !goalStore.loading" class="list-group-item text-muted">
               No active goals yet.
             </li>
           </ul>
+
           <div class="card-footer d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
             <button class="btn btn-sm btn-outline-dark ms-auto" @click="exportActiveCsv">Export CSV</button>
@@ -56,7 +56,9 @@
             <span>Shared with me</span>
             <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Shared' }">Open</router-link>
           </div>
+
           <ul class="list-group list-group-flush">
+            <li v-if="collabLoading" class="list-group-item text-muted">Loading…</li>
             <li v-for="g in sharedPreview" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-start justify-content-between">
                 <div class="me-2">
@@ -68,10 +70,11 @@
                 </div>
               </div>
             </li>
-            <li v-if="!sharedPreview.length" class="list-group-item text-muted">
+            <li v-if="!sharedPreview.length && !collabLoading" class="list-group-item text-muted">
               Nothing shared with you yet.
             </li>
           </ul>
+
           <div class="card-footer">
             <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
           </div>
@@ -82,6 +85,7 @@
       <div class="col-lg-4">
         <div class="card h-100">
           <div class="card-header">This week</div>
+
           <ul class="list-group list-group-flush">
             <li v-for="g in thisWeek" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-center justify-content-between">
@@ -98,6 +102,7 @@
               No goals due this week.
             </li>
           </ul>
+
           <div class="card-footer">
             <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
           </div>
@@ -105,7 +110,7 @@
       </div>
     </div>
 
-    <!-- Quick add a goal (moved here, below the three sections) -->
+    <!-- Quick add a goal -->
     <div class="card my-4">
       <div class="card-header">Quick add a goal</div>
       <form @submit.prevent="quickAdd" class="card-body">
@@ -160,14 +165,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useGoalStore, type Goal } from '../stores/goal.store'
-import type { SharedGoal } from '../stores/collab.store'
+import { useCollabStore, type SharedGoal } from '../stores/collab.store'
 
 // Stores
 const goalStore = useGoalStore()
+const collab = useCollabStore()
 
-// Local previews
-const activePreview = ref<Goal[]>([])
-const sharedPreview = ref<SharedGoal[]>([])
+// Local previews (computed from stores so fields are mapped correctly)
+const activePreview = computed<Goal[]>(() => goalStore.goals.slice(0, 5))
+const sharedPreview = computed<SharedGoal[]>(() => collab.shared.slice(0, 5))
 
 // Quick add form
 const qTitle = ref('')
@@ -177,40 +183,8 @@ const qCategory = ref('')
 const qTags = ref('')
 const qColor = ref('#3b82f6')
 
-// Helpers
-function makeHeaders(): HeadersInit {
-  const h: Record<string, string> = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('token')
-  if (token) h.Authorization = `Bearer ${token}`
-  return h
-}
-
-async function loadActivePreview() {
-  const qs = new URLSearchParams({
-    page: '1',
-    pageSize: '50',
-    status: 'in_progress',
-    sort: 'created_desc'
-  })
-  const res = await fetch(`/api/goals?${qs.toString()}`, { headers: makeHeaders() })
-  if (res.ok) {
-    const data = await res.json()
-    activePreview.value = (data?.data ?? []).slice(0, 5)
-  } else {
-    activePreview.value = []
-  }
-}
-
-async function loadSharedPreview() {
-  const qs = new URLSearchParams({ page: '1', pageSize: '5' })
-  const res = await fetch(`/api/collab/goals/shared?${qs.toString()}`, { headers: makeHeaders() })
-  if (res.ok) {
-    const data = await res.json()
-    sharedPreview.value = data?.data ?? []
-  } else {
-    sharedPreview.value = []
-  }
-}
+// Collab loading flag (lightweight)
+const collabLoading = ref(false)
 
 function todayMidnight() {
   const d = new Date()
@@ -261,10 +235,13 @@ async function quickAdd() {
 }
 
 async function refreshAll() {
-  await Promise.all([loadActivePreview(), loadSharedPreview()])
+  await Promise.all([
+    goalStore.loadGoals({ page: 1, pageSize: 50, status: 'in_progress', sort: 'created_desc' }),
+    (async () => { collabLoading.value = true; try { await collab.listShared({ page: 1, pageSize: 5 }) } finally { collabLoading.value = false } })()
+  ])
 }
 
-/** CSV exporter without replaceAll (uses regex) */
+/** CSV exporter (quotes, escapes, and mitigates CSV injection) */
 function exportActiveCsv() {
   const rows = [
     ['id','title','status','target_date','category','tags','created_at'],
@@ -272,7 +249,7 @@ function exportActiveCsv() {
       g.id, g.title, g.status, g.targetDate ?? '', g.category ?? '', g.tags ?? '', g.createdAt
     ])
   ]
-  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n')
+  const csv = rows.map(r => r.map(csvEscapeSafe).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -283,8 +260,10 @@ function exportActiveCsv() {
   a.remove()
   URL.revokeObjectURL(url)
 }
-function csvEscape(value: unknown): string {
-  const s = String(value ?? '')
+function csvEscapeSafe(value: unknown): string {
+  // Basic escape + mitigate Excel CSV injection (prefix dangerous leading chars with a single quote)
+  let s = String(value ?? '')
+  if (/^[=+\-@]/.test(s)) s = `'` + s
   return `"${s.replace(/"/g, '""')}"`
 }
 
