@@ -353,27 +353,60 @@ router.get(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { goalId } = PathGoalId.parse(req.params)
-      if (!(await canAccess(req.userId!, goalId))) { res.status(403).json({ message: 'Forbidden' }); return }
+      if (!(await canAccess(req.userId!, goalId))) {
+        res.status(403).json({ message: 'Forbidden' })
+        return
+      }
 
+      // Select messages + sender email + two correlated subqueries:
+      // latest check-in (status/progress) by the same sender, for the same goal,
+      // with created_at <= message.created_at.
       const rows = await db
-        .selectFrom('goal_messages')
-        .innerJoin('users', 'users.id', 'goal_messages.sender_id')
+        .selectFrom('goal_messages as gm')
+        .innerJoin('users as u', 'u.id', 'gm.sender_id')
         .select([
-          'goal_messages.id as id',
-          'goal_messages.body as body',
-          'goal_messages.created_at as created_at',
-          'goal_messages.sender_id as sender_id',
-          'users.email as email',
+          'gm.id as id',
+          'gm.body as body',
+          'gm.created_at as created_at',
+          'gm.sender_id as sender_id',
+          'u.email as email',
+
+          // _status
+          (eb) =>
+            eb
+              .selectFrom('goal_checkins as gc')
+              .select('gc.status')
+              .whereRef('gc.goal_id', '=', 'gm.goal_id')
+              .whereRef('gc.user_id', '=', 'gm.sender_id')
+              .whereRef('gc.created_at', '<=', 'gm.created_at')
+              .orderBy('gc.created_at', 'desc')
+              .limit(1)
+              .as('_status'),
+
+          // _progress
+          (eb) =>
+            eb
+              .selectFrom('goal_checkins as gc')
+              .select('gc.progress')
+              .whereRef('gc.goal_id', '=', 'gm.goal_id')
+              .whereRef('gc.user_id', '=', 'gm.sender_id')
+              .whereRef('gc.created_at', '<=', 'gm.created_at')
+              .orderBy('gc.created_at', 'desc')
+              .limit(1)
+              .as('_progress'),
         ])
-        .where('goal_messages.goal_id', '=', goalId)
-        .orderBy('goal_messages.created_at', 'desc')
+        .where('gm.goal_id', '=', goalId)
+        .orderBy('gm.created_at', 'desc') // newest first (your UI reverses or truncates as needed)
         .limit(50)
         .execute()
 
       res.json(rows)
-    } catch (e) { next(e) }
+    } catch (e) {
+      next(e)
+    }
   }
 )
+
 
 // POST /api/collab/goals/:goalId/messages
 router.post(
