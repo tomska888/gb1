@@ -44,7 +44,7 @@
                   </thead>
                   <tbody>
                     <tr><td>See goal & history</td><td>✅</td><td>✅</td><td>✅</td></tr>
-                    <tr><td>Post messages</td><td>✅</td><td>✅</td><td>✅</td></tr>
+                    <tr><td>Post messages</td><td>✅</td><td>—</td><td>✅</td></tr>
                     <tr><td>Post check-ins</td><td>✅</td><td>—</td><td>✅</td></tr>
                     <tr><td>Edit / delete goal</td><td>✅</td><td>—</td><td>—</td></tr>
                     <tr><td>Revoke sharing</td><td>✅</td><td>—</td><td>—</td></tr>
