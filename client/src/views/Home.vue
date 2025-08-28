@@ -111,7 +111,7 @@
     </div>
 
     <!-- Quick add a goal -->
-    <div class="card my-4">
+    <!-- <div class="card my-4">
       <div class="card-header">Quick add a goal</div>
       <form @submit.prevent="quickAdd" class="card-body">
         <div class="row g-2 align-items-end">
@@ -146,7 +146,7 @@
           </div>
         </div>
       </form>
-    </div>
+    </div> -->
 
     <!-- Tips & shortcuts -->
     <div class="card">
@@ -176,12 +176,12 @@ const activePreview = computed<Goal[]>(() => goalStore.goals.slice(0, 5))
 const sharedPreview = computed<SharedGoal[]>(() => collab.shared.slice(0, 5))
 
 // Quick add form
-const qTitle = ref('')
-const qDesc = ref('')
-const qTarget = ref<string | null>(null)
-const qCategory = ref('')
-const qTags = ref('')
-const qColor = ref('#3b82f6')
+// const qTitle = ref('')
+// const qDesc = ref('')
+// const qTarget = ref<string | null>(null)
+// const qCategory = ref('')
+// const qTags = ref('')
+// const qColor = ref('#3b82f6')
 
 // Collab loading flag (lightweight)
 const collabLoading = ref(false)
@@ -214,25 +214,25 @@ function isDueSoon(g: Goal) {
   return t >= todayMidnight() && t <= inDaysMidnight(3)
 }
 
-async function quickAdd() {
-  await goalStore.addGoal({
-    title: qTitle.value,
-    description: qDesc.value || undefined,
-    targetDate: qTarget.value ?? null,
-    category: qCategory.value || undefined,
-    tags: qTags.value || undefined,
-    color: qColor.value || undefined
-  })
-  // reset
-  qTitle.value = ''
-  qDesc.value = ''
-  qTarget.value = null
-  qCategory.value = ''
-  qTags.value = ''
-  qColor.value = '#3b82f6'
-  // refresh previews
-  await refreshAll()
-}
+// async function quickAdd() {
+//   await goalStore.addGoal({
+//     title: qTitle.value,
+//     description: qDesc.value || undefined,
+//     targetDate: qTarget.value ?? null,
+//     category: qCategory.value || undefined,
+//     tags: qTags.value || undefined,
+//     color: qColor.value || undefined
+//   })
+//   // reset
+//   qTitle.value = ''
+//   qDesc.value = ''
+//   qTarget.value = null
+//   qCategory.value = ''
+//   qTags.value = ''
+//   qColor.value = '#3b82f6'
+//   // refresh previews
+//   await refreshAll()
+// }
 
 async function refreshAll() {
   await Promise.all([

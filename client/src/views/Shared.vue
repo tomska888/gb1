@@ -17,8 +17,8 @@
               Owner goal · Target: {{ g.target_date ? g.target_date.slice(0, 10) : '—' }}
             </small>
 
-            <!-- Compact (no status/%), permissions 'view' blocks posting -->
-            <CheckinsPanel :goalId="g.id" :compact="true" :permissions="g.permissions" />
+            <!-- Compact panel (no status/% inputs). Respect permissions if present -->
+            <CheckinsPanel :goalId="g.id" :compact="true" :permissions="(g as any).permissions" />
           </div>
         </div>
       </li>
@@ -35,11 +35,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useCollabStore } from '../stores/collab.store'
 import CheckinsPanel from '../components/CheckinsPanel.vue'
+
+const route = useRoute()
 const collab = useCollabStore()
+
+function load() {
+  const ownerId = route.query.ownerId ? Number(route.query.ownerId) : undefined
+  collab.listShared({ page: 1, ownerId })
+}
 function next(){ collab.listShared({ page: collab.sharedPage + 1 }) }
 function prev(){ collab.listShared({ page: collab.sharedPage - 1 }) }
-onMounted(() => collab.listShared())
+
+onMounted(load)
+watch(() => route.query.ownerId, load)
 </script>
