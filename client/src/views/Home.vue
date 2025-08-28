@@ -110,6 +110,7 @@
       </div>
     </div>
 
+    <br>
     <!-- Quick add a goal -->
     <!-- <div class="card my-4">
       <div class="card-header">Quick add a goal</div>

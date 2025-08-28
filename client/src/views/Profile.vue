@@ -7,7 +7,9 @@
       <div class="card-header">Account</div>
       <div class="card-body">
         <p class="mb-1"><strong>Email:</strong> {{ userEmail || '—' }}</p>
-        <p class="mb-0 text-muted"><small>Member since: {{ memberSinceText }}</small></p>
+        <p class="mb-0 text-muted">
+          <small>Member since: {{ memberSinceText }}</small>
+        </p>
       </div>
     </div>
 
@@ -94,9 +96,10 @@ const goals = useGoalStore()
 /* --- account --- */
 const userEmail = computed(() => auth.userEmail)
 const memberSinceText = computed(() => {
-  // If you later expose createdAt in auth, you can replace this.
-  // For now we display nothing meaningful besides a dash.
-  return '—'
+  const iso = auth.userCreatedAt
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
 })
 
 /* --- owners (people who share with me) --- */
@@ -109,7 +112,6 @@ async function reloadOwners() {
 }
 
 function openOwner(ownerId: number) {
-  // Navigate to /shared filtered by ownerId (Shared.vue watches this)
   router.push({ name: 'Shared', query: { ownerId: String(ownerId) } })
 }
 
@@ -129,8 +131,9 @@ function applyDefaultStatus() {
 }
 
 onMounted(async () => {
+  // If user refreshed and only token was persisted, fetch profile to populate created_at/email:
+  if (!auth.userCreatedAt && auth.token) await auth.refreshMe()
   if (!collab.ownersLoaded) await reloadOwners()
-  // keep store synced with preference
   goals.pageSize = pageSize.value
 })
 </script>
