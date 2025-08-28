@@ -14,13 +14,13 @@
     <div class="row g-3">
       <!-- My Active Goals -->
       <div class="col-lg-4">
-        <div class="card h-100">
+        <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>My active goals</span>
             <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Goals' }">View all</router-link>
           </div>
 
-          <ul class="list-group list-group-flush">
+          <ul class="list-group list-group-flush flex-grow-1">
             <li v-if="goalStore.loading" class="list-group-item text-muted">Loading…</li>
             <li v-for="g in activePreview" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-start justify-content-between">
@@ -51,13 +51,13 @@
 
       <!-- Shared with me -->
       <div class="col-lg-4">
-        <div class="card h-100">
+        <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>Shared with me</span>
             <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Shared' }">Open</router-link>
           </div>
 
-          <ul class="list-group list-group-flush">
+          <ul class="list-group list-group-flush flex-grow-1">
             <li v-if="collabLoading" class="list-group-item text-muted">Loading…</li>
             <li v-for="g in sharedPreview" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-start justify-content-between">
@@ -83,10 +83,10 @@
 
       <!-- This Week -->
       <div class="col-lg-4">
-        <div class="card h-100">
+        <div class="card h-100 d-flex flex-column">
           <div class="card-header">This week</div>
 
-          <ul class="list-group list-group-flush">
+          <ul class="list-group list-group-flush flex-grow-1">
             <li v-for="g in thisWeek" :key="g.id" class="list-group-item">
               <div class="d-flex align-items-center justify-content-between">
                 <div>
