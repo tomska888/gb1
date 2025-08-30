@@ -54,7 +54,7 @@
         <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>Shared with me</span>
-            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Shared' }">Open</router-link>
+            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Profile' }">Open</router-link>
           </div>
 
           <ul class="list-group list-group-flush flex-grow-1">
