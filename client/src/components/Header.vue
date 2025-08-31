@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container">
@@ -13,7 +14,7 @@
       >
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
+      <div id="navbarNav" class="collapse navbar-collapse">
         <ul class="navbar-nav ms-auto">
           <li class="nav-item">
             <router-link class="nav-link" to="/">Home</router-link>
@@ -43,24 +44,24 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth.store';
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth.store'
 
-const auth = useAuthStore();
-const router = useRouter();
+const auth = useAuthStore()
+const router = useRouter()
 
-const isAuthenticated = computed(() => !!auth.token);
+const isAuthenticated = computed(() => !!auth.token)
 
 function onLogout() {
-  auth.logout();
-  router.push({ name: 'Login' });
+  auth.logout()
+  router.push({ name: 'Login' })
 }
 </script>
 
 <!-- Explicit default export to satisfy TS/Vetur -->
 <script lang="ts">
-import { computed, defineComponent } from 'vue';
-export default defineComponent({});
+import { computed, defineComponent } from 'vue'
+export default defineComponent({})
 </script>
 
 <style scoped>

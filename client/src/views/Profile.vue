@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="container">
     <h1 class="mb-3">Your Profile</h1>
@@ -17,13 +18,19 @@
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <span>People who share goals with me</span>
-        <button class="btn btn-sm btn-outline-secondary" @click="reloadOwners" :disabled="ownersLoading">
+        <button
+          class="btn btn-sm btn-outline-secondary"
+          :disabled="ownersLoading"
+          @click="reloadOwners"
+        >
           {{ ownersLoading ? 'Loading…' : 'Refresh' }}
         </button>
       </div>
       <div class="card-body">
         <div v-if="ownersLoading" class="text-muted">Loading…</div>
-        <div v-else-if="!owners.length" class="text-muted">No one has shared their goals with you yet.</div>
+        <div v-else-if="!owners.length" class="text-muted">
+          No one has shared their goals with you yet.
+        </div>
         <ul v-else class="list-group">
           <li
             v-for="o in owners"
@@ -32,7 +39,9 @@
           >
             <div>
               <div class="fw-semibold">{{ o.email }}</div>
-              <small class="text-muted">{{ o.goal_count }} shared goal{{ o.goal_count === 1 ? '' : 's' }}</small>
+              <small class="text-muted"
+                >{{ o.goal_count }} shared goal{{ o.goal_count === 1 ? '' : 's' }}</small
+              >
             </div>
             <button class="btn btn-sm btn-primary" @click="openOwner(o.owner_id)">
               View goals
@@ -50,12 +59,12 @@
           <div class="col-md-4">
             <label class="form-label">Goals page size</label>
             <input
+              v-model.number="pageSize"
               type="number"
               min="5"
               max="50"
               step="5"
               class="form-control"
-              v-model.number="pageSize"
               @change="applyPageSize"
             />
             <small class="text-muted">How many goals per page on Your Goals.</small>
@@ -63,7 +72,7 @@
 
           <div class="col-md-4">
             <label class="form-label">Default status tab</label>
-            <select class="form-select" v-model="defaultStatus" @change="applyDefaultStatus">
+            <select v-model="defaultStatus" class="form-select" @change="applyDefaultStatus">
               <option value="in_progress">Active</option>
               <option value="all">All</option>
               <option value="completed">Completed</option>
@@ -108,7 +117,11 @@ const ownersLoading = ref(false)
 
 async function reloadOwners() {
   ownersLoading.value = true
-  try { await collab.listOwners() } finally { ownersLoading.value = false }
+  try {
+    await collab.listOwners()
+  } finally {
+    ownersLoading.value = false
+  }
 }
 
 function openOwner(ownerId: number) {

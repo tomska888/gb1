@@ -17,7 +17,11 @@
         }"
       >
         {{ t.text }}
-        <button type="button" class="btn-close btn-close-white ms-2 float-end" @click="store.remove(t.id)"></button>
+        <button
+          type="button"
+          class="btn-close btn-close-white ms-2 float-end"
+          @click="store.remove(t.id)"
+        ></button>
       </div>
     </div>
   </div>
@@ -29,5 +33,7 @@ const store = useToastStore()
 </script>
 
 <style scoped>
-.toast { min-width: 260px; }
+.toast {
+  min-width: 260px;
+}
 </style>

@@ -129,7 +129,9 @@ export const useCollabStore = defineStore('collab', {
         try {
           const e = await r.json()
           if (e?.message) msg = e.message
-        } catch {}
+        } catch {
+          /* no-op */
+        }
         throw new Error(msg)
       }
       await this.getShares(goalId)
@@ -152,7 +154,10 @@ export const useCollabStore = defineStore('collab', {
       this.checkins[goalId] = await r.json()
     },
 
-    async addCheckin(goalId: number, payload: { status: CheckinStatus; progress?: number | null; note?: string }) {
+    async addCheckin(
+      goalId: number,
+      payload: { status: CheckinStatus; progress?: number | null; note?: string },
+    ) {
       const r = await fetch(`/api/collab/goals/${goalId}/checkins`, {
         method: 'POST',
         headers: authHeaders(),

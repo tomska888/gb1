@@ -29,9 +29,12 @@ type ApiGoal = {
 }
 
 export type SortKey =
-  | 'created_desc' | 'created_asc'
-  | 'target_asc'  | 'target_desc'
-  | 'title_asc'   | 'title_desc'
+  | 'created_desc'
+  | 'created_asc'
+  | 'target_asc'
+  | 'target_desc'
+  | 'title_asc'
+  | 'title_desc'
 
 export interface ListResponse {
   data: ApiGoal[]

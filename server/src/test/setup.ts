@@ -1,19 +1,25 @@
-import { beforeAll, beforeEach, afterAll } from 'vitest';
-import { db } from '../config/database.js';
-import { sql } from 'kysely';
+import { beforeAll, beforeEach, afterAll } from "vitest";
+import { db } from "../config/database.js";
+import { sql } from "kysely";
 
 beforeAll(async () => {
-  try { await sql`select 1`.execute(db); } catch {}
+  try {
+    await sql`select 1`.execute(db);
+  } catch {
+    /* no-op */
+  }
   const missing = [];
-  for (const t of ['users', 'goals']) {
+  for (const t of ["users", "goals"]) {
     const r = await sql`
       select to_regclass('public.${sql.raw(t)}') as exists
     `.execute(db);
-    const exists = (r.rows as any[])[0]?.exists;
+    const exists = (r.rows as Array<{ exists: string | null }>)[0]?.exists;
     if (!exists) missing.push(t);
   }
   if (missing.length) {
-    throw new Error(`Migrations did not create tables: ${missing.join(', ')}. Check dist/migrations & migrator path.`);
+    throw new Error(
+      `Migrations did not create tables: ${missing.join(", ")}. Check dist/migrations & migrator path.`,
+    );
   }
 });
 

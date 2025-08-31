@@ -1,11 +1,11 @@
-import express, { Request, Response, NextFunction } from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import { db } from './config/database.js';
-import { sql } from 'kysely';
-import { authRouter } from './api/auth/auth.router.js';
-import { goalsRouter } from './api/goals/goals.router.js';
-import collabRouter from './api/collab/collab.router.js';
+import express, { Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import { db } from "./config/database.js";
+import { sql } from "kysely";
+import { authRouter } from "./api/auth/auth.router.js";
+import { goalsRouter } from "./api/goals/goals.router.js";
+import collabRouter from "./api/collab/collab.router.js";
 
 dotenv.config();
 
@@ -16,52 +16,52 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRouter);
-app.use('/api/goals', goalsRouter);
-app.use('/api/collab', collabRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/goals", goalsRouter);
+app.use("/api/collab", collabRouter);
 
-app.get('/', (req: Request, res: Response) => {
+app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     message:
-      'Welcome to the GoalBuddy API! The current time in Vilnius is ' +
-      new Date().toLocaleString('en-US', { timeZone: 'Europe/Vilnius' }),
+      "Welcome to the GoalBuddy API! The current time in Vilnius is " +
+      new Date().toLocaleString("en-US", { timeZone: "Europe/Vilnius" }),
   });
 });
 
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok' });
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "ok" });
 });
 
-app.get('/api/health', async (req: Request, res: Response) => {
+app.get("/api/health", async (req: Request, res: Response) => {
   try {
     const result = await sql`SELECT datname FROM pg_database`.execute(db);
 
     res.status(200).json({
-      status: 'ok',
-      message: 'Database connection is healthy.',
+      status: "ok",
+      message: "Database connection is healthy.",
       databases: (result.rows as { datname: string }[]).map((db) => db.datname),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Database connection error:', error);
+    console.error("Database connection error:", error);
     res.status(500).json({
-      status: 'error',
-      message: 'Failed to connect to the database.',
+      status: "error",
+      message: "Failed to connect to the database.",
     });
   }
 });
 
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', err);
-  const body: any = { message: 'Internal Server Error' };
-  if (process.env.NODE_ENV === 'test') {
-    body.error = String(err?.message ?? err);
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("Unhandled error:", err);
+  const body: Record<string, unknown> = { message: "Internal Server Error" };
+  if (process.env.NODE_ENV === "test") {
+    body.error = err instanceof Error ? err.message : String(err);
   }
   res.status(500).json(body);
 });
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, '0.0.0.0', () => {
+if (process.env.NODE_ENV !== "test") {
+  app.listen(port, "0.0.0.0", () => {
     console.log(`🚀 Server is running at http://0.0.0.0:${port}`);
   });
 }

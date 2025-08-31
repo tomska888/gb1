@@ -16,7 +16,7 @@
           min="0"
           max="100"
           class="form-control form-control-sm"
-          style="max-width:100px"
+          style="max-width: 100px"
           placeholder="%"
         />
       </template>
@@ -29,11 +29,7 @@
         @keyup.enter="send"
       />
 
-      <button
-        class="btn btn-sm btn-outline-primary"
-        :disabled="sendDisabled"
-        @click="send"
-      >
+      <button class="btn btn-sm btn-outline-primary" :disabled="sendDisabled" @click="send">
         Send
       </button>
 
@@ -54,7 +50,9 @@
 
           <!-- optional client-side badges -->
           <span v-if="m._status" class="badge bg-light text-dark border ms-2">{{ m._status }}</span>
-          <span v-if="m._progress != null" class="badge bg-info text-dark ms-1">{{ m._progress }}%</span>
+          <span v-if="m._progress != null" class="badge bg-info text-dark ms-1"
+            >{{ m._progress }}%</span
+          >
 
           <span class="ms-2">{{ m.body }}</span>
           <small class="text-muted ms-2">{{ new Date(m.created_at).toLocaleString() }}</small>
@@ -83,18 +81,18 @@ export default defineComponent({
     compact: { type: Boolean, default: false },
     permissions: { type: String as () => 'view' | 'checkin' | undefined, default: undefined },
   },
-  setup (props) {
+  setup(props) {
     const collab = useCollabStore()
     const auth = useAuthStore()
 
     // ---- form state
-    const status   = ref<CheckinStatus>('on_track')
+    const status = ref<CheckinStatus>('on_track')
     const progress = ref<number | null>(null)
-    const text     = ref('')
+    const text = ref('')
 
     // ---- roles
-    const isOwner  = computed(() => !props.permissions)
-    const canPost  = computed(() => {
+    const isOwner = computed(() => !props.permissions)
+    const canPost = computed(() => {
       if (props.permissions === 'view') return false
       return true
     })
@@ -105,18 +103,23 @@ export default defineComponent({
     // collapse to last few
     const MAX_VISIBLE = 4
     const showAll = ref(false)
-    const visibleMsgs = computed(() => showAll.value ? msgs.value : msgs.value.slice(0, MAX_VISIBLE))
-    function toggleShowAll () { showAll.value = !showAll.value }
+    const visibleMsgs = computed(() =>
+      showAll.value ? msgs.value : msgs.value.slice(0, MAX_VISIBLE),
+    )
+    function toggleShowAll() {
+      showAll.value = !showAll.value
+    }
 
     // who is me?
-    function isMe (m: { sender_id?: number; email?: string }) {
-      if (typeof (auth as any).userId === 'number' && typeof m.sender_id === 'number') {
-        return m.sender_id === (auth as any).userId
+    function isMe(m: { sender_id?: number; email?: string }) {
+      const maybeUserId = (auth as unknown as { userId?: number }).userId
+      if (typeof maybeUserId === 'number' && typeof m.sender_id === 'number') {
+        return m.sender_id === maybeUserId
       }
       return !!(m.email && auth.userEmail && m.email.toLowerCase() === auth.userEmail.toLowerCase())
     }
 
-    async function reload () {
+    async function reload() {
       await collab.listMessages(props.goalId)
     }
 
@@ -131,7 +134,7 @@ export default defineComponent({
       }
     })
 
-    async function send () {
+    async function send() {
       if (sendDisabled.value) return
 
       if (isOwner.value) {
@@ -140,7 +143,7 @@ export default defineComponent({
           status: status.value,
           progress: progress.value,
           // FIX: send undefined (not null) when empty
-          note: (text.value.trim() || undefined),
+          note: text.value.trim() || undefined,
         })
 
         // 2) single chat line
@@ -170,12 +173,21 @@ export default defineComponent({
     watch(() => props.goalId, reload)
 
     return {
-      status, progress, text,
-      isOwner, canPost,
-      msgs, MAX_VISIBLE, visibleMsgs, showAll, toggleShowAll,
-      isMe, reload,
-      send, sendDisabled,
+      status,
+      progress,
+      text,
+      isOwner,
+      canPost,
+      msgs,
+      MAX_VISIBLE,
+      visibleMsgs,
+      showAll,
+      toggleShowAll,
+      isMe,
+      reload,
+      send,
+      sendDisabled,
     }
-  }
+  },
 })
 </script>

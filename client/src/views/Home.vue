@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="container my-4">
     <!-- Hero -->
@@ -17,7 +18,9 @@
         <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>My active goals</span>
-            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Goals' }">View all</router-link>
+            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Goals' }"
+              >View all</router-link
+            >
           </div>
 
           <ul class="list-group list-group-flush flex-grow-1">
@@ -26,25 +29,33 @@
               <div class="d-flex align-items-start justify-content-between">
                 <div class="me-2">
                   <div class="d-flex align-items-center gap-2">
-                    <span v-if="g.color" class="d-inline-block rounded-circle"
-                          :style="{ background: g.color, width: '10px', height: '10px' }" />
+                    <span
+                      v-if="g.color"
+                      class="d-inline-block rounded-circle"
+                      :style="{ background: g.color, width: '10px', height: '10px' }"
+                    />
                     <strong>{{ g.title }}</strong>
                     <span v-if="g.category" class="badge bg-secondary">{{ g.category }}</span>
                   </div>
                   <small class="text-muted d-block">
-                    Target: {{ g.targetDate ? g.targetDate.slice(0,10) : '—' }}
+                    Target: {{ g.targetDate ? g.targetDate.slice(0, 10) : '—' }}
                   </small>
                 </div>
               </div>
             </li>
-            <li v-if="!activePreview.length && !goalStore.loading" class="list-group-item text-muted">
+            <li
+              v-if="!activePreview.length && !goalStore.loading"
+              class="list-group-item text-muted"
+            >
               No active goals yet.
             </li>
           </ul>
 
           <div class="card-footer d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary" @click="refreshAll">Refresh</button>
-            <button class="btn btn-sm btn-outline-dark ms-auto" @click="exportActiveCsv">Export CSV</button>
+            <button class="btn btn-sm btn-outline-dark ms-auto" @click="exportActiveCsv">
+              Export CSV
+            </button>
           </div>
         </div>
       </div>
@@ -54,7 +65,9 @@
         <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>Shared with me</span>
-            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Profile' }">Open</router-link>
+            <router-link class="btn btn-sm btn-outline-primary" :to="{ name: 'Profile' }"
+              >Open</router-link
+            >
           </div>
 
           <ul class="list-group list-group-flush flex-grow-1">
@@ -64,8 +77,10 @@
                 <div class="me-2">
                   <strong>{{ g.title }}</strong>
                   <div class="small text-muted">
-                    Target: {{ g.target_date ? g.target_date.slice(0,10) : '—' }}
-                    <span v-if="g.status === 'completed'" class="badge bg-success ms-2">Completed</span>
+                    Target: {{ g.target_date ? g.target_date.slice(0, 10) : '—' }}
+                    <span v-if="g.status === 'completed'" class="badge bg-success ms-2"
+                      >Completed</span
+                    >
                   </div>
                 </div>
               </div>
@@ -92,10 +107,10 @@
                 <div>
                   <strong>{{ g.title }}</strong>
                   <div class="small text-muted">
-                    Due {{ g.targetDate ? g.targetDate.slice(0,10) : '—' }}
+                    Due {{ g.targetDate ? g.targetDate.slice(0, 10) : '—' }}
                   </div>
                 </div>
-                <span class="badge bg-warning text-dark" v-if="isDueSoon(g)">Due soon</span>
+                <span v-if="isDueSoon(g)" class="badge bg-warning text-dark">Due soon</span>
               </div>
             </li>
             <li v-if="!thisWeek.length" class="list-group-item text-muted">
@@ -110,7 +125,7 @@
       </div>
     </div>
 
-    <br>
+    <br />
     <!-- Quick add a goal -->
     <!-- <div class="card my-4">
       <div class="card-header">Quick add a goal</div>
@@ -155,7 +170,10 @@
       <div class="card-body">
         <ul class="mb-0">
           <li>Press <kbd>/</kbd> to focus search in Goals, <kbd>n</kbd> to focus “Title”.</li>
-          <li>Use <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>/<kbd>4</kbd> to jump All/Active/Completed/Abandoned.</li>
+          <li>
+            Use <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>/<kbd>4</kbd> to jump
+            All/Active/Completed/Abandoned.
+          </li>
           <li>Share a goal with a buddy to unlock quick check-ins and messaging.</li>
         </ul>
       </div>
@@ -201,12 +219,12 @@ function inDaysMidnight(days: number) {
 
 const thisWeek = computed(() =>
   activePreview.value
-    .filter(g => g.targetDate && g.status === 'in_progress')
-    .filter(g => {
+    .filter((g) => g.targetDate && g.status === 'in_progress')
+    .filter((g) => {
       const t = new Date(g.targetDate as string).getTime()
       return t >= todayMidnight() && t <= inDaysMidnight(7)
     })
-    .slice(0, 5)
+    .slice(0, 5),
 )
 
 function isDueSoon(g: Goal) {
@@ -238,24 +256,37 @@ function isDueSoon(g: Goal) {
 async function refreshAll() {
   await Promise.all([
     goalStore.loadGoals({ page: 1, pageSize: 50, status: 'in_progress', sort: 'created_desc' }),
-    (async () => { collabLoading.value = true; try { await collab.listShared({ page: 1, pageSize: 5 }) } finally { collabLoading.value = false } })()
+    (async () => {
+      collabLoading.value = true
+      try {
+        await collab.listShared({ page: 1, pageSize: 5 })
+      } finally {
+        collabLoading.value = false
+      }
+    })(),
   ])
 }
 
 /** CSV exporter (quotes, escapes, and mitigates CSV injection) */
 function exportActiveCsv() {
   const rows = [
-    ['id','title','status','target_date','category','tags','created_at'],
-    ...activePreview.value.map(g => [
-      g.id, g.title, g.status, g.targetDate ?? '', g.category ?? '', g.tags ?? '', g.createdAt
-    ])
+    ['id', 'title', 'status', 'target_date', 'category', 'tags', 'created_at'],
+    ...activePreview.value.map((g) => [
+      g.id,
+      g.title,
+      g.status,
+      g.targetDate ?? '',
+      g.category ?? '',
+      g.tags ?? '',
+      g.createdAt,
+    ]),
   ]
-  const csv = rows.map(r => r.map(csvEscapeSafe).join(',')).join('\n')
+  const csv = rows.map((r) => r.map(csvEscapeSafe).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `goalbuddy-active-${new Date().toISOString().slice(0,10)}.csv`
+  a.download = `goalbuddy-active-${new Date().toISOString().slice(0, 10)}.csv`
   document.body.appendChild(a)
   a.click()
   a.remove()

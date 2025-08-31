@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <footer class="bg-light text-center py-3 mt-auto">
     <div class="container">
@@ -11,8 +12,8 @@
 </script>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-export default defineComponent({});
+import { defineComponent } from 'vue'
+export default defineComponent({})
 </script>
 
 <style scoped>

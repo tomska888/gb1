@@ -39,7 +39,8 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('userEmail', data.user.email)
 
       // 3) member since
-      const createdAt = (data?.user as any)?.created_at ?? null
+      const u = data.user as { created_at?: string | null }
+      const createdAt = u.created_at ?? null
       this.userCreatedAt = createdAt
       if (createdAt) localStorage.setItem('userCreatedAt', createdAt)
       else localStorage.removeItem('userCreatedAt')
