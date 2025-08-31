@@ -19,71 +19,84 @@ jobs:
     permissions:
       contents: read
 
-    # PostgreSQL for server tests
     services:
       postgres:
         image: postgres:17
         env:
+          POSTGRES_DB: app_test
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        # Wait until the DB is healthy before starting steps
         options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=5s
+          --health-cmd="pg_isready -U postgres -d app_test"
+          --health-interval=10s
           --health-timeout=5s
-          --health-retries=12
+          --health-retries=10
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---------- TEST + COVERAGE (server) ----------
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
           cache: 'npm'
-          # Cache based on the server workspace lockfile
-          cache-dependency-path: server/package-lock.json
 
-      # Remove the old "Install dependencies (root workspaces)" step
+      - name: Install dependencies (workspaces)
+        run: npm ci
 
-      - name: Install dependencies (server)
-        working-directory: server
-        run: |
-          # Try strict install first; if the lockfile is out of sync, fall back to npm install
-          npm ci || npm install
-
-      - name: Create server/.env.test for Vitest
+      - name: Create server .env.test
         working-directory: server
         run: |
           cat > .env.test <<'EOF'
-          NODE_ENV=test
           DATABASE_URL=postgresql://neondb_owner:npg_ELnZQ0sk1cMD@ep-small-wind-a2oq6jyu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
           JWT_SECRET=your-super-secret-key-that-is-long-and-random
           EOF
 
-      - name: Run server tests with coverage (serial to avoid cross-talk)
-        working-directory: server
-        run: npm run test:coverage --silent
+      - name: Install jq (for coverage gate)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
-      - name: Enforce 90% coverage threshold
+      - name: Run server tests with coverage
         working-directory: server
         run: |
-          if [ ! -f coverage/coverage-summary.json ]; then
-            echo "coverage-summary.json not found" >&2
+          # add json-summary so we can gate in the next step
+          npm run test:coverage -- --coverage.reporter=json-summary
+
+      - name: Enforce 90% minimum coverage
+        working-directory: server
+        shell: bash
+        run: |
+          SUMMARY=coverage/coverage-summary.json
+          test -f "$SUMMARY" || { echo "Coverage summary not found"; exit 1; }
+          echo "Coverage summary:" && cat "$SUMMARY"
+
+          MIN=90
+          LINES=$(jq '.total.lines.pct' "$SUMMARY")
+          STMTS=$(jq '.total.statements.pct' "$SUMMARY")
+          FUNCS=$(jq '.total.functions.pct' "$SUMMARY")
+          BRANCHES=$(jq '.total.branches.pct' "$SUMMARY")
+
+          echo "lines=$LINES, statements=$STMTS, functions=$FUNCS, branches=$BRANCHES (min=$MIN)"
+
+          FAIL=0
+          awk -v l="$LINES" -v s="$STMTS" -v f="$FUNCS" -v b="$BRANCHES" -v m="$MIN" 'BEGIN{
+            if (l+0 < m) { print "❌ Lines below threshold: " l " < " m; fail=1 }
+            if (s+0 < m) { print "❌ Statements below threshold: " s " < " m; fail=1 }
+            if (f+0 < m) { print "❌ Functions below threshold: " f " < " m; fail=1 }
+            if (b+0 < m) { print "❌ Branches below threshold: " b " < " m; fail=1 }
+            exit fail
+          }' || FAIL=1
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo "Coverage gate failed."
             exit 1
           fi
-          python3 - <<'PY'
-          import json, sys
-          s = json.load(open('coverage/coverage-summary.json'))['total']
-          vals = {k: float(s[k]['pct']) for k in ('lines','branches','functions','statements')}
-          print("Coverage:", vals)
-          if any(v < 90.0 for v in vals.values()):
-              print("❌ Coverage threshold (<90%) not met.", file=sys.stderr)
-              sys.exit(1)
-          print("✅ Coverage threshold met.")
-          PY
+          echo "✅ Coverage gate passed."
 
       - name: Upload coverage artifact
         if: always()
@@ -91,11 +104,8 @@ jobs:
         with:
           name: server-coverage
           path: server/coverage
-          if-no-files-found: warn
-          retention-days: 7
 
-      # ---- Build & push only if tests/coverage passed ----
-
+      # ---------- BUILD & DEPLOY ----------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
