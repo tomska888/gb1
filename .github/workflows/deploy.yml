@@ -96,7 +96,7 @@ jobs:
           name: server-coverage
           path: server/coverage
 
-      # ---------- BUILD & DEPLOY ----------
+      # ---------- BUILD & DEPLOY ---------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
