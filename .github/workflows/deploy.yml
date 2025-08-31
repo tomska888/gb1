@@ -2,7 +2,7 @@ name: ci-cd
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 env:
@@ -19,21 +19,6 @@ jobs:
     permissions:
       contents: read
 
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: app_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres -d app_test"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,25 +31,29 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies (workspaces)
-        run: npm ci
+        run: npm install
 
-      - name: Create server .env.test
+      # Migrate using the Neon TEST DB (inject it as DATABASE_URL so server picks it up)
+      - name: Run server migrations (test DB)
         working-directory: server
-        run: |
-          cat > .env.test <<'EOF'
-          DATABASE_URL=postgresql://neondb_owner:npg_ELnZQ0sk1cMD@ep-small-wind-a2oq6jyu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-          JWT_SECRET=your-super-secret-key-that-is-long-and-random
-          EOF
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          JWT_SECRET: test-secret
+        run: npm run migrate
 
       - name: Install jq (for coverage gate)
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Run server tests with coverage
+      - name: Run server tests (coverage)
         working-directory: server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          JWT_SECRET: test-secret
         run: |
-          # add json-summary so we can gate in the next step
           npm run test:coverage -- --coverage.reporter=json-summary
 
       - name: Enforce 90% minimum coverage
