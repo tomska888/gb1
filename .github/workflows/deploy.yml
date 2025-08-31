@@ -18,9 +18,92 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
+    # PostgreSQL for server tests
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Wait until the DB is healthy before starting steps
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies (root workspaces)
+        run: npm ci
+
+      - name: Create server/.env.test for Vitest
+        working-directory: server
+        run: |
+          cat > .env.test <<'EOF'
+          NODE_ENV=test
+          # GitHub service hostname is "localhost" for mapped ports
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+          JWT_SECRET=testsecret
+          EOF
+          cat .env.test
+
+      - name: Install Postgres client (for pg_isready if needed)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres to be ready
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U postgres && exit 0
+            echo "Waiting for Postgres ($i/30)..."
+            sleep 2
+          done
+          echo "Postgres did not become ready in time" >&2
+          exit 1
+
+      - name: Run server tests with coverage (and serial pool to avoid cross-talk)
+        run: npm run test:coverage -w server --silent
+
+      - name: Enforce 90% coverage threshold
+        working-directory: server
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "coverage-summary.json not found" >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json, sys
+          s = json.load(open('coverage/coverage-summary.json'))['total']
+          vals = {k: float(s[k]['pct']) for k in ('lines','branches','functions','statements')}
+          print("Coverage:", vals)
+          if any(v < 90.0 for v in vals.values()):
+              print("❌ Coverage threshold (<90%) not met.", file=sys.stderr)
+              sys.exit(1)
+          print("✅ Coverage threshold met.")
+          PY
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: server/coverage
+          if-no-files-found: warn
+          retention-days: 7
+
+      # ---- Build & push only if tests/coverage passed ----
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

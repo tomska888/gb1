@@ -5,8 +5,11 @@ import { db } from './config/database.js';
 import { WindowsFileMigrationProvider } from './lib/windows-migration-provider.js';
 import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const SOURCE_MIGRATION_FOLDER = path.join(process.cwd(), 'src/migrations');
-const COMPILED_MIGRATION_FOLDER = path.join(fileURLToPath(import.meta.url), '../../dist/migrations');
+const COMPILED_MIGRATION_FOLDER = path.join(__dirname, 'migrations');
 
 const MIGRATION_TEMPLATE = `import { Kysely } from 'kysely';
 
@@ -35,6 +38,14 @@ async function createMigration(name: string) {
 }
 
 async function migrateToLatest() {
+  console.log('Using compiled migrations folder:', COMPILED_MIGRATION_FOLDER);
+  try {
+    const files = await fs.readdir(COMPILED_MIGRATION_FOLDER);
+    console.log('📄 Found compiled migration files:', files);
+  } catch (e) {
+    console.log('⚠️  No compiled migration folder found yet.');
+  }
+
   const migrator = new Migrator({
     db,
     provider: new WindowsFileMigrationProvider(COMPILED_MIGRATION_FOLDER),
@@ -47,6 +58,7 @@ async function migrateToLatest() {
       console.log(`✅ Migration "${it.migrationName}" was executed successfully`);
     } else if (it.status === 'Error') {
       console.error(`❌ Failed to execute migration "${it.migrationName}"`);
+      console.error(error);
     }
   });
 

@@ -6,6 +6,7 @@ export default defineConfig({
       concurrent: false,
     },
     include: ['src/**/*.test.ts'],
+    setupFiles: ['src/test/setup.ts'],
     coverage: {
       reporter: ['text', 'json', 'html'],
       provider: 'v8',

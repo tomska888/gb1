@@ -1,11 +1,11 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { db } from './config/database.js';
 import { sql } from 'kysely';
 import { authRouter } from './api/auth/auth.router.js';
 import { goalsRouter } from './api/goals/goals.router.js';
-import collabRouter from './api/collab/collab.router.js'
+import collabRouter from './api/collab/collab.router.js';
 
 dotenv.config();
 
@@ -16,14 +16,15 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(cors());
 app.use(express.json());
 
-
 app.use('/api/auth', authRouter);
 app.use('/api/goals', goalsRouter);
-app.use('/api/collab', collabRouter)
+app.use('/api/collab', collabRouter);
 
 app.get('/', (req: Request, res: Response) => {
   res.status(200).json({
-    message: 'Welcome to the GoalBuddy API! The current time in Vilnius is ' + new Date().toLocaleString('en-US', { timeZone: 'Europe/Vilnius' }),
+    message:
+      'Welcome to the GoalBuddy API! The current time in Vilnius is ' +
+      new Date().toLocaleString('en-US', { timeZone: 'Europe/Vilnius' }),
   });
 });
 
@@ -38,7 +39,7 @@ app.get('/api/health', async (req: Request, res: Response) => {
     res.status(200).json({
       status: 'ok',
       message: 'Database connection is healthy.',
-      databases: (result.rows as { datname: string }[]).map(db => db.datname),
+      databases: (result.rows as { datname: string }[]).map((db) => db.datname),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -50,8 +51,17 @@ app.get('/api/health', async (req: Request, res: Response) => {
   }
 });
 
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  const body: any = { message: 'Internal Server Error' };
+  if (process.env.NODE_ENV === 'test') {
+    body.error = String(err?.message ?? err);
+  }
+  res.status(500).json(body);
+});
+
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 Server is running at http://0.0.0.0:${port}`);
-    });
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 Server is running at http://0.0.0.0:${port}`);
+  });
 }
