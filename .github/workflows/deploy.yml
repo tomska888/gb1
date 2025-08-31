@@ -43,38 +43,29 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          # Cache based on the server workspace lockfile
+          cache-dependency-path: server/package-lock.json
 
-      - name: Install dependencies (root workspaces)
-        run: npm ci
+      # Remove the old "Install dependencies (root workspaces)" step
+
+      - name: Install dependencies (server)
+        working-directory: server
+        run: |
+          # Try strict install first; if the lockfile is out of sync, fall back to npm install
+          npm ci || npm install
 
       - name: Create server/.env.test for Vitest
         working-directory: server
         run: |
           cat > .env.test <<'EOF'
           NODE_ENV=test
-          # GitHub service hostname is "localhost" for mapped ports
           DATABASE_URL=postgresql://neondb_owner:npg_ELnZQ0sk1cMD@ep-small-wind-a2oq6jyu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
           JWT_SECRET=your-super-secret-key-that-is-long-and-random
           EOF
-          cat .env.test
 
-      - name: Install Postgres client (for pg_isready if needed)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Wait for Postgres to be ready
-        run: |
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres && exit 0
-            echo "Waiting for Postgres ($i/30)..."
-            sleep 2
-          done
-          echo "Postgres did not become ready in time" >&2
-          exit 1
-
-      - name: Run server tests with coverage (and serial pool to avoid cross-talk)
-        run: npm run test:coverage -w server --silent
+      - name: Run server tests with coverage (serial to avoid cross-talk)
+        working-directory: server
+        run: npm run test:coverage --silent
 
       - name: Enforce 90% coverage threshold
         working-directory: server
