@@ -69,9 +69,9 @@
                 :key="s.id"
                 class="list-group-item d-flex justify-content-between align-items-center"
               >
-                <span
-                  >{{ s.email }} <small class="text-muted">({{ s.permissions }})</small></span
-                >
+                <span>
+                  {{ s.email }} <small class="text-muted">({{ s.permissions }})</small>
+                </span>
                 <button class="btn btn-sm btn-outline-danger" @click="revoke(s.buddy_id)">
                   Revoke
                 </button>
@@ -120,8 +120,10 @@ export default defineComponent({
       if (props.goalId == null) return
       clearBanner()
       try {
-        await collab.share(props.goalId, email.value, perm.value)
-        successMsg.value = `Shared with ${email.value}.`
+        const { emailSent } = await collab.share(props.goalId, email.value, perm.value)
+        successMsg.value = emailSent
+          ? `Shared with ${email.value}. Email notification sent.`
+          : `Shared with ${email.value}.`
         email.value = ''
       } catch (e: unknown) {
         errorMsg.value = e instanceof Error ? e.message : 'Share failed.'

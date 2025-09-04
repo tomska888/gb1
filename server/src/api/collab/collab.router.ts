@@ -9,6 +9,7 @@ import type { ExpressionBuilder } from "kysely";
 import { db } from "../../config/database.js";
 import { authenticateToken } from "../../middleware/middleware.js";
 import type { Database } from "../../types/db.js";
+import { sendSharedGoalEmail } from "../../lib/mailer.js";
 
 const router = Router();
 
@@ -98,7 +99,7 @@ router.post(
 
       if (existing) {
         if (existing.buddy_id === buddy.id) {
-          res.status(200).json({ alreadyShared: true });
+          res.status(200).json({ alreadyShared: true, emailSent: false });
           return;
         }
         res.status(409).json({
@@ -119,7 +120,46 @@ router.post(
         .returningAll()
         .executeTakeFirst();
 
-      res.status(201).json(inserted);
+      // --- Email notify (best-effort) ---
+      let emailSent = false;
+      try {
+        const goal = await db
+          .selectFrom("goals")
+          .select(["title", "category", "target_date"])
+          .where("id", "=", goalId)
+          .executeTakeFirst();
+
+        const owner = await db
+          .selectFrom("users")
+          .select(["email"])
+          .where("id", "=", req.userId!)
+          .executeTakeFirst();
+
+        const PUBLIC_APP_URL =
+          process.env.PUBLIC_APP_URL || "http://localhost:5174";
+        const link = `${PUBLIC_APP_URL}/shared?ownerId=${req.userId!}`;
+
+        const targetDateStr =
+            goal?.target_date
+              ? (goal.target_date instanceof Date
+                ? goal.target_date.toISOString().slice(0, 10)
+                : new Date(goal.target_date as unknown as string).toISOString().slice(0, 10))
+              : null;
+
+        emailSent = await sendSharedGoalEmail({
+          to: buddy.email,
+          ownerEmail: owner?.email || "owner",
+          goalTitle: goal?.title || "Goal",
+          goalCategory: goal?.category || null,
+          targetDate: targetDateStr,
+          permission: permissions,
+          link,
+        });
+      } catch (e) {
+        console.warn("[share] email failed/disabled:", e);
+      }
+
+      res.status(201).json({ ...inserted, emailSent });
     } catch (e) {
       next(e);
     }
