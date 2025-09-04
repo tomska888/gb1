@@ -9,7 +9,6 @@
       </p>
     </header>
 
-    <!-- What / How -->
     <section class="mb-5">
       <h2 class="h4">What does it do?</h2>
       <p>
@@ -95,7 +94,6 @@
       </div>
     </section>
 
-    <!-- Keyboard shortcuts -->
     <section class="mb-5">
       <h2 class="h4">Keyboard shortcuts</h2>
       <div class="table-responsive">
@@ -136,7 +134,6 @@
       </div>
     </section>
 
-    <!-- FAQ -->
     <section class="mb-5">
       <h2 class="h4">FAQ</h2>
 
@@ -173,7 +170,6 @@
       </details>
     </section>
 
-    <!-- Changelog / Roadmap -->
     <section class="mb-5">
       <h2 class="h4">What’s new</h2>
       <ul class="list-unstyled">
@@ -191,7 +187,6 @@
       </ul>
     </section>
 
-    <!-- Contact / trust -->
     <section class="mb-5">
       <h2 class="h4">Contact & feedback</h2>
       <p class="mb-1">

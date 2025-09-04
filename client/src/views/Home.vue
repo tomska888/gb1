@@ -1,7 +1,6 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="container my-4">
-    <!-- Hero -->
     <div class="p-4 p-md-5 mb-4 bg-light rounded-3">
       <div class="container-fluid py-2">
         <h1 class="display-6 fw-semibold">Welcome back 👋</h1>
@@ -11,9 +10,7 @@
       </div>
     </div>
 
-    <!-- 3-up preview: Active / Shared / This Week -->
     <div class="row g-3">
-      <!-- My Active Goals -->
       <div class="col-lg-4">
         <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -60,7 +57,6 @@
         </div>
       </div>
 
-      <!-- Shared with me -->
       <div class="col-lg-4">
         <div class="card h-100 d-flex flex-column">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -96,7 +92,6 @@
         </div>
       </div>
 
-      <!-- This Week -->
       <div class="col-lg-4">
         <div class="card h-100 d-flex flex-column">
           <div class="card-header">This week</div>
@@ -164,7 +159,6 @@
       </form>
     </div> -->
 
-    <!-- Tips & shortcuts -->
     <div class="card">
       <div class="card-header">Tips & shortcuts</div>
       <div class="card-body">
@@ -186,11 +180,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useGoalStore, type Goal } from '../stores/goal.store'
 import { useCollabStore, type SharedGoal } from '../stores/collab.store'
 
-// Stores
 const goalStore = useGoalStore()
 const collab = useCollabStore()
 
-// Local previews (computed from stores so fields are mapped correctly)
 const activePreview = computed<Goal[]>(() => goalStore.goals.slice(0, 5))
 const sharedPreview = computed<SharedGoal[]>(() => collab.shared.slice(0, 5))
 
@@ -202,7 +194,6 @@ const sharedPreview = computed<SharedGoal[]>(() => collab.shared.slice(0, 5))
 // const qTags = ref('')
 // const qColor = ref('#3b82f6')
 
-// Collab loading flag (lightweight)
 const collabLoading = ref(false)
 
 function todayMidnight() {
@@ -267,7 +258,6 @@ async function refreshAll() {
   ])
 }
 
-/** CSV exporter (quotes, escapes, and mitigates CSV injection) */
 function exportActiveCsv() {
   const rows = [
     ['id', 'title', 'status', 'target_date', 'category', 'tags', 'created_at'],
@@ -293,7 +283,6 @@ function exportActiveCsv() {
   URL.revokeObjectURL(url)
 }
 function csvEscapeSafe(value: unknown): string {
-  // Basic escape + mitigate Excel CSV injection (prefix dangerous leading chars with a single quote)
   let s = String(value ?? '')
   if (/^[=+\-@]/.test(s)) s = `'` + s
   return `"${s.replace(/"/g, '""')}"`

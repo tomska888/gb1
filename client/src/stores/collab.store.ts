@@ -75,7 +75,6 @@ export const useCollabStore = defineStore('collab', {
   }),
 
   actions: {
-    /* ---------- list owners (who share with me) ---------- */
     async listOwners() {
       const r = await fetch('/api/collab/owners', { headers: authHeaders() })
       if (!r.ok) throw new Error('Failed to load owners')
@@ -83,7 +82,6 @@ export const useCollabStore = defineStore('collab', {
       this.ownersLoaded = true
     },
 
-    /* ---------- list shared goals ---------- */
     async listShared(opts?: {
       page?: number
       pageSize?: number
@@ -111,7 +109,6 @@ export const useCollabStore = defineStore('collab', {
       this.sharedTotal = data.total
     },
 
-    /* ---------- shares for a goal ---------- */
     async getShares(goalId: number) {
       const r = await fetch(`/api/collab/goals/${goalId}/shares`, { headers: authHeaders() })
       if (!r.ok) throw new Error('Failed to get shares')
@@ -146,7 +143,6 @@ export const useCollabStore = defineStore('collab', {
       await this.getShares(goalId)
     },
 
-    /* ---------- check-ins ---------- */
     async listCheckins(goalId: number) {
       if (!goalId && goalId !== 0) return
       const r = await fetch(`/api/collab/goals/${goalId}/checkins`, { headers: authHeaders() })
@@ -167,7 +163,6 @@ export const useCollabStore = defineStore('collab', {
       await this.listCheckins(goalId)
     },
 
-    /* ---------- messages ---------- */
     async listMessages(goalId: number) {
       const r = await fetch(`/api/collab/goals/${goalId}/messages`, { headers: authHeaders() })
       if (!r.ok) throw new Error('Failed to load messages')

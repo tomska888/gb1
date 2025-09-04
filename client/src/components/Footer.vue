@@ -7,15 +7,11 @@
   </footer>
 </template>
 
-<script setup lang="ts">
-// no logic needed for now
-</script>
+<script setup lang="ts"></script>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 export default defineComponent({})
 </script>
 
-<style scoped>
-/* Scoped footer styles if needed */
-</style>
+<style scoped></style>

@@ -17,7 +17,6 @@ export interface GoalTable {
   target_date: Date | null;
   status: GoalStatus;
   created_at: ColumnType<Date, string | undefined, never>;
-  /* keep nullable to avoid forced migrations if you already have live data */
   category: string | null;
   tags: string | null;
   color: string | null;

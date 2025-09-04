@@ -1,4 +1,3 @@
-// ESM, because client/package.json has "type":"module"
 import express from 'express'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import path from 'path'
@@ -12,17 +11,14 @@ const app = express()
 const port = process.env.PORT || 80
 const apiTarget = process.env.API_PROXY_PASS || 'http://server:3000'
 
-// Proxy /api -> backend
 app.use(
   '/api',
   createProxyMiddleware({
     target: apiTarget,
     changeOrigin: true,
-    // keep /api prefix as-is
   }),
 )
 
-// Serve built SPA
 app.use(express.static(path.join(__dirname, 'dist')))
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'))

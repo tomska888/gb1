@@ -12,8 +12,6 @@ import type { Database } from "../../types/db.js";
 
 const router = Router();
 
-/* ---------- helpers ---------- */
-
 async function userOwnsGoal(userId: number, goalId: number): Promise<boolean> {
   const row = await db
     .selectFrom("goals")
@@ -47,23 +45,15 @@ async function canAccess(userId: number, goalId: number): Promise<boolean> {
   if (await userHasShare(userId, goalId)) return true;
   return false;
 }
-
-/** buddies may post only if they have 'checkin' permission. owners can always post */
 async function canPostOnGoal(userId: number, goalId: number): Promise<boolean> {
   if (await userOwnsGoal(userId, goalId)) return true;
   const share = await getShareForBuddy(userId, goalId);
   return !!share && share.permissions === "checkin";
 }
-
-/* ---------- validation ---------- */
-
 const PathGoalId = z.object({ goalId: z.coerce.number().int().positive() });
 
-/* =======================================================================
-   SHARES  (/api/collab)
-   ======================================================================= */
+/*SHARES  (/api/collab)*/
 
-// POST /api/collab/goals/:goalId/share
 router.post(
   "/goals/:goalId/share",
   authenticateToken,
@@ -100,7 +90,6 @@ router.post(
         return;
       }
 
-      // ---- SINGLE SHARE PER GOAL ENFORCEMENT ----
       const existing = await db
         .selectFrom("goal_shares")
         .select(["buddy_id"])
@@ -109,11 +98,9 @@ router.post(
 
       if (existing) {
         if (existing.buddy_id === buddy.id) {
-          // Already shared with this same user
           res.status(200).json({ alreadyShared: true });
           return;
         }
-        // Different user already has this goal
         res.status(409).json({
           message:
             "This goal is already shared with another user. Revoke the current share first.",
@@ -139,7 +126,6 @@ router.post(
   },
 );
 
-// GET /api/collab/goals/:goalId/shares
 router.get(
   "/goals/:goalId/shares",
   authenticateToken,
@@ -171,7 +157,6 @@ router.get(
   },
 );
 
-// DELETE /api/collab/goals/:goalId/share/:buddyId
 router.delete(
   "/goals/:goalId/share/:buddyId",
   authenticateToken,
@@ -213,11 +198,7 @@ router.delete(
   },
 );
 
-/* =======================================================================
-   WHO SHARES WITH ME
-   ======================================================================= */
-
-// GET /api/collab/owners
+/*WHO SHARES WITH ME*/
 router.get(
   "/owners",
   authenticateToken,
@@ -252,11 +233,8 @@ router.get(
   },
 );
 
-/* =======================================================================
-   LIST SHARED
-   ======================================================================= */
+/*LIST SHARED*/
 
-// GET /api/collab/goals/shared
 router.get(
   "/goals/shared",
   authenticateToken,
@@ -379,11 +357,7 @@ router.get(
   },
 );
 
-/* =======================================================================
-   CHECK-INS
-   ======================================================================= */
-
-// GET /api/collab/goals/:goalId/checkins
+/*CHECK-INS*/
 router.get(
   "/goals/:goalId/checkins",
   authenticateToken,
@@ -410,7 +384,6 @@ router.get(
   },
 );
 
-// POST /api/collab/goals/:goalId/checkins
 router.post(
   "/goals/:goalId/checkins",
   authenticateToken,
@@ -427,7 +400,6 @@ router.post(
         return;
       }
 
-      // block buddies from posting on completed goals (owner can still post)
       const g = await db
         .selectFrom("goals")
         .select(["status", "user_id"])
@@ -475,11 +447,7 @@ router.post(
   },
 );
 
-/* =======================================================================
-   MESSAGES
-   ======================================================================= */
-
-// GET /api/collab/goals/:goalId/messages
+/*MESSAGES*/
 router.get(
   "/goals/:goalId/messages",
   authenticateToken,
@@ -533,7 +501,6 @@ router.get(
   },
 );
 
-// POST /api/collab/goals/:goalId/messages
 router.post(
   "/goals/:goalId/messages",
   authenticateToken,

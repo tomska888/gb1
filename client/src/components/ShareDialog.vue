@@ -8,7 +8,6 @@
         </div>
 
         <div class="modal-body">
-          <!-- Error / success banners -->
           <div
             v-if="errorMsg"
             class="alert alert-danger d-flex justify-content-between align-items-center py-2"
@@ -34,13 +33,11 @@
             ></button>
           </div>
 
-          <!-- Single-buddy note -->
           <div v-if="singleMode" class="alert alert-info py-2">
             This goal is already shared with one buddy. Revoke the current share first to share with
             someone else.
           </div>
 
-          <!-- Input row -->
           <div class="input-group mb-3">
             <input
               v-model="email"
@@ -64,7 +61,6 @@
             </button>
           </div>
 
-          <!-- Current share (0 or 1 in single-mode) -->
           <div v-if="shares.length">
             <div class="fw-semibold mb-2">Shared with</div>
             <ul class="list-group">
@@ -95,7 +91,6 @@ import { useCollabStore } from '../stores/collab.store'
 
 export default defineComponent({
   name: 'ShareDialog',
-  // make it optional + default
   props: { goalId: { type: Number, required: false, default: undefined } },
   setup(props) {
     const collab = useCollabStore()
@@ -112,7 +107,6 @@ export default defineComponent({
       successMsg.value = ''
     }
 
-    // guard the watcher
     watch(
       () => props.goalId,
       async (id) => {

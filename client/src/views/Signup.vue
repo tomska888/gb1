@@ -46,7 +46,6 @@ async function onSubmit() {
   try {
     await auth.signup({ email: email.value, password: password.value })
   } catch (err: unknown) {
-    // Narrow error safely (no 'any')
     if (axios.isAxiosError<{ message?: string }>(err)) {
       error.value = err.response?.data?.message ?? 'Signup failed. Please try again.'
     } else if (err instanceof Error) {

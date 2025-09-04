@@ -5,7 +5,6 @@
 
     <h2>Your Goals</h2>
 
-    <!-- Tabs with per-status counters -->
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <ul class="nav nav-pills flex-wrap">
         <li class="nav-item">
@@ -50,7 +49,6 @@
       </div>
     </div>
 
-    <!-- Filters -->
     <div v-if="showFilters" class="row g-2 align-items-end mb-3">
       <div class="col-md-5">
         <label class="form-label">Search</label>
@@ -92,7 +90,6 @@
       </div>
     </div>
 
-    <!-- Create / Edit -->
     <form class="mb-4" @submit.prevent="onSubmit">
       <div class="row g-2 align-items-end">
         <div class="col-md-3">
@@ -155,11 +152,9 @@
       </div>
     </form>
 
-    <!-- List -->
     <ul class="list-group">
       <li v-for="goal in goalStore.goals" :key="goal.id" class="list-group-item">
         <div class="d-flex justify-content-between align-items-start">
-          <!-- Left: title + meta + checkins/chat -->
           <div class="me-3 flex-grow-1">
             <div class="d-flex align-items-center gap-2">
               <span
@@ -190,11 +185,9 @@
               <small class="ms-2">Created at {{ formatDate(goal.createdAt) }}</small>
             </div>
 
-            <!-- Unified check-in + chat panel -->
             <CheckinsPanel :goal-id="goal.id" />
           </div>
 
-          <!-- Right: status + actions -->
           <div class="ms-2 d-flex flex-column align-items-end gap-2" style="min-width: 220px">
             <div class="d-flex align-items-center gap-2">
               <span class="text-muted small">Status:</span>
@@ -237,7 +230,6 @@
       </li>
     </ul>
 
-    <!-- Pagination -->
     <div class="d-flex justify-content-between align-items-center mt-3">
       <div class="text-muted small">
         Page {{ goalStore.page }} / {{ goalStore.totalPages }} · Showing {{ showingFrom }}–{{
@@ -263,7 +255,6 @@
       No goals in this list.
     </div>
 
-    <!-- Share modal -->
     <ShareDialog :goal-id="shareGoalId ?? undefined" />
   </div>
 </template>
@@ -282,7 +273,6 @@ const goalStore = useGoalStore()
 const titleInput = ref<HTMLInputElement | null>(null)
 const shareGoalId = ref<number | undefined>(undefined)
 
-/* Form */
 const title = ref('')
 const description = ref('')
 const targetDate = ref<string | null>(null)
@@ -291,7 +281,6 @@ const tags = ref('')
 const color = ref('#3b82f6')
 const editingId = ref<number | null>(null)
 
-/* Filters */
 type StatusTab = 'all' | 'in_progress' | 'completed' | 'abandoned'
 const status = ref<StatusTab>((localStorage.getItem('gb_status') as StatusTab) || 'in_progress')
 const sortKey = ref<SortKey>((localStorage.getItem('gb_sort') as SortKey) || 'created_desc')
@@ -299,7 +288,6 @@ const showFilters = ref<boolean>(localStorage.getItem('gb_showFilters') === '1')
 const search = ref<string>(localStorage.getItem('gb_search') || '')
 const categoryFilter = ref<string>(localStorage.getItem('gb_cat') || '')
 
-/* Debounced search */
 const debouncedSearch = ref<string>(search.value)
 let searchTimer: number | undefined
 watch(search, (val) => {
@@ -307,7 +295,6 @@ watch(search, (val) => {
   searchTimer = window.setTimeout(() => (debouncedSearch.value = val), 250)
 })
 
-/* Persist UI */
 watch([status, sortKey, search, showFilters, categoryFilter], () => {
   localStorage.setItem('gb_status', status.value)
   localStorage.setItem('gb_sort', sortKey.value)
@@ -316,7 +303,6 @@ watch([status, sortKey, search, showFilters, categoryFilter], () => {
   localStorage.setItem('gb_cat', categoryFilter.value)
 })
 
-/* Counters */
 const counters = ref({ all: 0, in_progress: 0, completed: 0, abandoned: 0 })
 function makeHeaders(): HeadersInit {
   const h: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -332,7 +318,6 @@ async function loadCounters() {
   if (r.ok) counters.value = await r.json()
 }
 
-/* List helpers */
 const total = computed(() => goalStore.total)
 const showingFrom = computed(() =>
   goalStore.total === 0 ? 0 : (goalStore.page - 1) * goalStore.pageSize + 1,
@@ -395,7 +380,6 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
 })
 
-/* Actions */
 function openShare(id: number) {
   shareGoalId.value = id
 }
@@ -523,7 +507,6 @@ function formatDate(s: string) {
   return new Date(s).toLocaleString()
 }
 
-/* Keyboard shortcuts */
 function onKeyDown(e: KeyboardEvent) {
   const tag = (e.target as HTMLElement)?.tagName
   const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'

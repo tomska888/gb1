@@ -68,7 +68,6 @@ function prev() {
   collab.listShared({ page: collab.sharedPage - 1 })
 }
 
-// helper to avoid TS cast in template
 function getPerm(g: unknown): Perm | undefined {
   return (g as { permissions?: Perm })?.permissions
 }

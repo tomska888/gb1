@@ -23,22 +23,19 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async signup(creds: Credentials) {
       await signupRequest(creds)
-      await this.login(creds) // your current flow, now login returns created_at too
+      await this.login(creds)
     },
 
     async login(creds: Credentials) {
       const { data } = await loginRequest(creds)
 
-      // 1) token
       this.token = data.token
       localStorage.setItem('token', data.token)
       setAuthHeader(data.token)
 
-      // 2) user email
       this.userEmail = data.user.email
       localStorage.setItem('userEmail', data.user.email)
 
-      // 3) member since
       const u = data.user as { created_at?: string | null }
       const createdAt = u.created_at ?? null
       this.userCreatedAt = createdAt
@@ -47,7 +44,6 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async refreshMe() {
-      // Use fetch directly; your auth.service may not have /me helper
       if (!this.token) return
       const r = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${this.token}` },

@@ -7,7 +7,6 @@ export interface Credentials {
   password: string
 }
 
-// UPDATED: login now returns both token *and* user object
 export interface AuthResponse {
   token: string
   user: {

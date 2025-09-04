@@ -55,7 +55,6 @@ async function onSubmit() {
     }
   } finally {
     loading.value = false
-    // **If** login actually set a token, go on to Goals
     if (auth.token) {
       error.value = null
       router.push({ name: 'Goals' })

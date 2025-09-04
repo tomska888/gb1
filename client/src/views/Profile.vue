@@ -3,7 +3,6 @@
   <div class="container">
     <h1 class="mb-3">Your Profile</h1>
 
-    <!-- Account -->
     <div class="card mb-4">
       <div class="card-header">Account</div>
       <div class="card-body">
@@ -14,7 +13,6 @@
       </div>
     </div>
 
-    <!-- People who share goals with me -->
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <span>People who share goals with me</span>
@@ -51,7 +49,6 @@
       </div>
     </div>
 
-    <!-- Preferences (client-side only) -->
     <div class="card">
       <div class="card-header">Preferences</div>
       <div class="card-body">
@@ -102,7 +99,6 @@ const auth = useAuthStore()
 const collab = useCollabStore()
 const goals = useGoalStore()
 
-/* --- account --- */
 const userEmail = computed(() => auth.userEmail)
 const memberSinceText = computed(() => {
   const iso = auth.userCreatedAt
@@ -111,7 +107,6 @@ const memberSinceText = computed(() => {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' })
 })
 
-/* --- owners (people who share with me) --- */
 const owners = computed(() => collab.owners ?? [])
 const ownersLoading = ref(false)
 
@@ -128,7 +123,6 @@ function openOwner(ownerId: number) {
   router.push({ name: 'Shared', query: { ownerId: String(ownerId) } })
 }
 
-/* --- preferences (client-side only) --- */
 const pageSize = ref<number>(Number(localStorage.getItem('gb_pageSize') || goals.pageSize || 10))
 const defaultStatus = ref<string>(localStorage.getItem('gb_status') || 'in_progress')
 
@@ -144,7 +138,6 @@ function applyDefaultStatus() {
 }
 
 onMounted(async () => {
-  // If user refreshed and only token was persisted, fetch profile to populate created_at/email:
   if (!auth.userCreatedAt && auth.token) await auth.refreshMe()
   if (!collab.ownersLoaded) await reloadOwners()
   goals.pageSize = pageSize.value

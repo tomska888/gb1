@@ -1,4 +1,3 @@
-// eslint.config.mjs (root)
 import js from "@eslint/js";
 import vue from "eslint-plugin-vue";
 import vueTs from "@vue/eslint-config-typescript";
@@ -10,7 +9,6 @@ import vueParser from "vue-eslint-parser";
 import tsParser from "@typescript-eslint/parser";
 
 export default [
-  // ignore artifacts
   {
     ignores: [
       "**/dist/**",
@@ -24,10 +22,8 @@ export default [
 
   js.configs.recommended,
 
-  // Vue recommended (flat)
   ...vue.configs["flat/recommended"],
 
-  // Ensure .vue uses vue parser + TS in <script lang="ts">
   {
     files: ["**/*.vue"],
     languageOptions: {
@@ -42,7 +38,6 @@ export default [
     },
     plugins: { vue },
     rules: {
-      // allow single-word names for common pages/components
       "vue/multi-word-component-names": [
         "error",
         {
@@ -61,13 +56,10 @@ export default [
     },
   },
 
-  // Vue + TypeScript preset
   ...vueTs(),
 
-  // Prettier compatibility for Vue (note: this is a single object, not spread)
   vuePrettier,
 
-  // Server code (Node)
   {
     files: ["server/**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
@@ -77,7 +69,6 @@ export default [
       globals: { ...globals.node, ...globals.es2023 },
     },
     rules: {
-      // unused args like (_next)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_" },
@@ -85,7 +76,6 @@ export default [
     },
   },
 
-  // Client non-.vue TS/JS (browser)
   {
     files: ["client/**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
@@ -96,7 +86,6 @@ export default [
     },
   },
 
-  // Node env just for the client dev server file (fixes "process is not defined")
   {
     files: ["client/server.{js,cjs,mjs}"],
     languageOptions: {
@@ -104,7 +93,6 @@ export default [
     },
   },
 
-  // Tests
   {
     files: ["**/*.{test,spec}.{ts,tsx,js,jsx}"],
     plugins: { vitest },
@@ -125,7 +113,6 @@ export default [
     },
   },
 
-  // Playwright
   {
     files: [
       "**/e2e/**/*.{ts,js}",
@@ -137,7 +124,6 @@ export default [
     languageOptions: { globals: { ...globals.node, ...globals.es2023 } },
   },
 
-  // Migrations are allowed to be pragmatic (turn off no-explicit-any here)
   {
     files: ["server/src/migrations/**/*.ts"],
     rules: {

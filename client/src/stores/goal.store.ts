@@ -89,7 +89,6 @@ export const useGoalStore = defineStore('goal', {
     loading: false as boolean,
     error: null as string | null,
 
-    // pagination
     page: 1,
     pageSize: 10,
     total: 0,
@@ -161,7 +160,6 @@ export const useGoalStore = defineStore('goal', {
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(await res.text())
-      // not inserting locally to keep server-side paging consistent; trigger reload from UI
     },
 
     async updateGoal(id: number, patch: UpdateGoalInput): Promise<Goal> {
@@ -192,9 +190,7 @@ export const useGoalStore = defineStore('goal', {
         headers: makeHeaders(),
       })
       if (!res.ok) throw new Error(await res.text())
-      // remove locally to be snappy
       this.goals = this.goals.filter((g) => g.id !== id)
-      // total might have changed; page reload can be triggered by UI as needed
     },
   },
 })

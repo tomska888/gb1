@@ -72,7 +72,6 @@ authRouter.post(
     try {
       const { email, password } = loginSchema.parse(req.body);
 
-      // Pull only the columns we need, incl. created_at
       const user = await db
         .selectFrom("users")
         .select(["id", "email", "password", "created_at"])
@@ -100,7 +99,7 @@ authRouter.post(
         user: {
           id: user.id,
           email: user.email,
-          created_at: user.created_at, // <-- IMPORTANT
+          created_at: user.created_at,
         },
       });
     } catch (error) {
@@ -118,10 +117,6 @@ authRouter.post(
   },
 );
 
-/**
- * GET /api/auth/me
- * Return the current user's profile (id, email, created_at)
- */
 authRouter.get(
   "/me",
   authenticateToken,

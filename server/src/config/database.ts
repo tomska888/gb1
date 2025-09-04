@@ -3,7 +3,6 @@ import { Pool } from "pg";
 import dotenv from "dotenv";
 import type { Database } from "../types/db.js";
 
-// Explicitly pick the env file so tests never get the wrong URL.
 dotenv.config({
   path: process.env.NODE_ENV === "test" ? ".env.test" : ".env",
   override: false,

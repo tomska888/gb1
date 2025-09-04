@@ -27,28 +27,24 @@ describe("Collab Router", () => {
     const intruder = await makeUser("intruder");
     const goal = await createGoal(owner.token);
 
-    // not owner -> 403
     const f1 = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${buddy.token}`)
       .send({ email: owner.email });
     expect(f1.status).toBe(403);
 
-    // user not found -> 404
     const nf = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${owner.token}`)
       .send({ email: "missing@example.com" });
     expect(nf.status).toBe(404);
 
-    // self share -> 400
     const self = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${owner.token}`)
       .send({ email: owner.email });
     expect(self.status).toBe(400);
 
-    // success -> 201
     const ok = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${owner.token}`)
@@ -56,7 +52,6 @@ describe("Collab Router", () => {
     expect(ok.status).toBe(201);
     const share = ok.body;
 
-    // already shared with the same user -> 200
     const again = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${owner.token}`)
@@ -64,7 +59,6 @@ describe("Collab Router", () => {
     expect(again.status).toBe(200);
     expect(again.body.alreadyShared).toBe(true);
 
-    // share with a different user -> 409 single-share rule
     const different = await request(app)
       .post(`/api/collab/goals/${goal.id}/share`)
       .set("Authorization", `Bearer ${owner.token}`)

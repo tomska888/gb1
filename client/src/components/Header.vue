@@ -58,12 +58,9 @@ function onLogout() {
 }
 </script>
 
-<!-- Explicit default export to satisfy TS/Vetur -->
 <script lang="ts">
 import { computed, defineComponent } from 'vue'
 export default defineComponent({})
 </script>
 
-<style scoped>
-/* Scoped header styles if needed */
-</style>
+<style scoped></style>

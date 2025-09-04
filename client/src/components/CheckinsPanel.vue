@@ -1,8 +1,6 @@
 <template>
   <div class="mt-2">
-    <!-- Single composer row -->
     <div v-if="canPost" class="d-flex gap-2 align-items-center mb-2">
-      <!-- Owner-only status + % -->
       <template v-if="isOwner">
         <select v-model="status" class="form-select form-select-sm" style="max-width: 160px">
           <option value="on_track">On track</option>
@@ -21,7 +19,6 @@
         />
       </template>
 
-      <!-- One large input for both cases -->
       <input
         v-model="text"
         class="form-control form-control-sm"
@@ -36,7 +33,6 @@
       <button class="btn btn-sm btn-outline-secondary" @click="reload">Refresh</button>
     </div>
 
-    <!-- Messages (newest first). Collapsible to last few. -->
     <ul class="list-group list-group-flush">
       <li
         v-for="m in visibleMsgs"
@@ -48,7 +44,6 @@
             {{ isMe(m) ? 'Me' : 'Buddy' }}
           </span>
 
-          <!-- optional client-side badges -->
           <span v-if="m._status" class="badge bg-light text-dark border ms-2">{{ m._status }}</span>
           <span v-if="m._progress != null" class="badge bg-info text-dark ms-1"
             >{{ m._progress }}%</span
@@ -85,22 +80,18 @@ export default defineComponent({
     const collab = useCollabStore()
     const auth = useAuthStore()
 
-    // ---- form state
     const status = ref<CheckinStatus>('on_track')
     const progress = ref<number | null>(null)
     const text = ref('')
 
-    // ---- roles
     const isOwner = computed(() => !props.permissions)
     const canPost = computed(() => {
       if (props.permissions === 'view') return false
       return true
     })
 
-    // ---- messages (newest first)
     const msgs = computed(() => collab.messages[props.goalId] ?? [])
 
-    // collapse to last few
     const MAX_VISIBLE = 4
     const showAll = ref(false)
     const visibleMsgs = computed(() =>
@@ -110,7 +101,6 @@ export default defineComponent({
       showAll.value = !showAll.value
     }
 
-    // who is me?
     function isMe(m: { sender_id?: number; email?: string }) {
       const maybeUserId = (auth as unknown as { userId?: number }).userId
       if (typeof maybeUserId === 'number' && typeof m.sender_id === 'number') {
@@ -126,10 +116,8 @@ export default defineComponent({
     const sendDisabled = computed(() => {
       if (!canPost.value) return true
       if (isOwner.value) {
-        // owner must pick %
         return progress.value == null || Number.isNaN(progress.value)
       } else {
-        // buddy must type
         return !text.value.trim()
       }
     })
@@ -138,18 +126,14 @@ export default defineComponent({
       if (sendDisabled.value) return
 
       if (isOwner.value) {
-        // 1) create check-in (history)
         await collab.addCheckin(props.goalId, {
           status: status.value,
           progress: progress.value,
-          // FIX: send undefined (not null) when empty
           note: text.value.trim() || undefined,
         })
 
-        // 2) single chat line
         await collab.addMessage(props.goalId, text.value.trim())
 
-        // Reload and decorate newest chat line with badges
         await reload()
         const latest = (collab.messages[props.goalId] ?? [])[0] as Message | undefined
         if (latest) {
@@ -157,12 +141,10 @@ export default defineComponent({
           latest._progress = progress.value
         }
 
-        // reset form
         text.value = ''
         progress.value = null
         status.value = 'on_track'
       } else {
-        // buddy: chat only
         await collab.addMessage(props.goalId, text.value.trim())
         await reload()
         text.value = ''

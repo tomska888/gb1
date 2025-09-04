@@ -9,7 +9,6 @@ const router = Router();
 const toDateOrNull = (v: string | null | undefined): Date | null =>
   v ? new Date(v) : null;
 
-/* Schemas */
 const createGoalSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
@@ -49,7 +48,6 @@ const listQuerySchema = z.object({
   category: z.string().optional().default(""),
 });
 
-/* Create */
 router.post("/", authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const body = createGoalSchema.parse(req.body);
@@ -73,7 +71,6 @@ router.post("/", authenticateToken, async (req, res, next): Promise<void> => {
   }
 });
 
-/* List (pagination + filters) */
 router.get("/", authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const qp = listQuerySchema.parse(req.query);
@@ -139,7 +136,6 @@ router.get("/", authenticateToken, async (req, res, next): Promise<void> => {
   }
 });
 
-/* Update */
 router.put("/:id", authenticateToken, async (req, res, next): Promise<void> => {
   try {
     const { id } = z
