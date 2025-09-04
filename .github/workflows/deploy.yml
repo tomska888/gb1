@@ -103,69 +103,41 @@ jobs:
       - name: Start server (test DB)
         working-directory: server
         env:
-            NODE_ENV: test
-            # Your test DB (Neon) – CI uses this
+            NODE_ENV: production               # ← do NOT use "test" here
             DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
             JWT_SECRET: your-super-secret-key-that-is-long-and-random
             PORT: 3000
-            HOST: 0.0.0.0         # safe default
-            PGSSLMODE: require    # Neon typically needs SSL
+            HOST: 0.0.0.0
             CORS_ORIGIN: http://localhost:5174
         run: |
             set -euo pipefail
 
             echo "Node: $(node -v)  npm: $(npm -v)"
-            echo "Checking build output..."
             if [ ! -f dist/index.js ]; then
-            echo "❌ dist/index.js not found. Listing dist/:"
-            ls -la dist || true
-            echo "Make sure 'npm run build' produced dist/index.js"
-            exit 1
+            echo "❌ dist/index.js not found"; ls -la dist || true; exit 1
             fi
 
-            # Start the server in the background
             node dist/index.js > ../server.out.log 2>&1 &
             echo $! > ../server.pid
             echo "Server PID: $(cat ../server.pid)"
 
-            # Wait up to ~2 minutes for readiness.
-            # Try /api/health, then /health. Also check port is listening.
             for i in {1..60}; do
             if ! kill -0 "$(cat ../server.pid)" 2>/dev/null; then
-                echo "❌ Server process died while starting. Dumping server.out.log:"
-                echo "---------------- server.out.log (start) ---------------"
-                sed -n '1,200p' ../server.out.log || true
-                echo "---------------- server.out.log (end) -----------------"
-                exit 1
+                echo "❌ Server died while starting. Last log:"; tail -n 200 ../server.out.log || true; exit 1
             fi
 
             if curl -sf http://localhost:3000/api/health >/dev/null 2>&1 || \
                 curl -sf http://localhost:3000/health >/dev/null 2>&1; then
-                echo "✅ Health endpoint responded."
+                echo "✅ Server is up."
                 exit 0
             fi
 
-            # If health isn’t present yet, at least confirm the port is open
-            if bash -c ">/dev/tcp/127.0.0.1/3000" 2>/dev/null; then
-                echo "… port 3000 is listening; waiting for health… ($i/60)"
-            else
-                echo "… server not listening yet… ($i/60)"
-            fi
-
-            # Every 10s, show the last lines of server log to aid debugging
-            if [ $((i % 5)) -eq 0 ]; then
-                echo "---- tail server.out.log ----"
-                tail -n 40 ../server.out.log || true
-                echo "-----------------------------"
-            fi
-
-            sleep 2
+            echo "… waiting for server ($i/60)"; sleep 2
+            if [ $((i % 5)) -eq 0 ]; then echo "--- tail logs ---"; tail -n 40 ../server.out.log || true; fi
             done
 
-            echo "❌ Timed out waiting for server health. Full server.out.log:"
-            echo "---------------- server.out.log (start) ---------------"
+            echo "❌ Timed out waiting for server health. Full log:"
             sed -n '1,200p' ../server.out.log || true
-            echo "---------------- server.out.log (end) -----------------"
             exit 1
 
       - name: Build client (SPA)
