@@ -23,6 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---------- TEST + COVERAGE (server) ----------
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -94,6 +95,7 @@ jobs:
           name: server-coverage
           path: server/coverage
 
+      # ---------- E2E (client + server local) ----------
       - name: Build server (for runtime)
         working-directory: server
         run: npm run build
@@ -101,30 +103,20 @@ jobs:
       - name: Start server (test DB)
         working-directory: server
         env:
-            NODE_ENV: test
-            DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-            JWT_SECRET: your-super-secret-key-that-is-long-and-random
-            PORT: 3000
+          NODE_ENV: test
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          JWT_SECRET: your-super-secret-key-that-is-long-and-random
+          PORT: 3000
         run: |
-            # start server in background and capture logs
-            node dist/index.js > ../server.out.log 2>&1 &
-            echo $! > ../server.pid
-            echo "Server PID: $(cat ../server.pid)"
-
-            # wait for health on /api/health (try up to ~60s)
-            for i in {1..60}; do
-            if curl -sf http://localhost:3000/api/health >/dev/null; then
-                echo "✅ Server is up."
-                exit 0
-            fi
-            echo "waiting for server... ($i/60)"
+          node dist/index.js > ../server.out.log 2>&1 &
+          echo $! > ../server.pid
+          # wait for health
+          until curl -sf http://localhost:3000/api/health >/dev/null; do
+            echo "waiting for server..."
             sleep 1
-            done
-
-            echo "❌ Timed out waiting for server. Dumping server.out.log:"
-            sed -n '1,200p' ../server.out.log || true
-            exit 1
-
+          done
+          echo "Server is up."
 
       - name: Build client (SPA)
         working-directory: client
@@ -192,6 +184,7 @@ jobs:
           pkill -f "node dist/index.js" 2>/dev/null || true
           pkill -f "client/server.js" 2>/dev/null || true
 
+      # ---------- BUILD & DEPLOY ----------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
