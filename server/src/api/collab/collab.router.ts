@@ -139,12 +139,13 @@ router.post(
           process.env.PUBLIC_APP_URL || "http://localhost:5174";
         const link = `${PUBLIC_APP_URL}/shared?ownerId=${req.userId!}`;
 
-        const targetDateStr =
-            goal?.target_date
-              ? (goal.target_date instanceof Date
-                ? goal.target_date.toISOString().slice(0, 10)
-                : new Date(goal.target_date as unknown as string).toISOString().slice(0, 10))
-              : null;
+        const targetDateStr = goal?.target_date
+          ? goal.target_date instanceof Date
+            ? goal.target_date.toISOString().slice(0, 10)
+            : new Date(goal.target_date as unknown as string)
+                .toISOString()
+                .slice(0, 10)
+          : null;
 
         emailSent = await sendSharedGoalEmail({
           to: buddy.email,

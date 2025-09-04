@@ -115,7 +115,11 @@ export const useCollabStore = defineStore('collab', {
       this.shares[goalId] = await r.json()
     },
 
-    async share(goalId: number, email: string, permissions: 'view' | 'checkin' = 'checkin'): Promise<{ emailSent: boolean }> {
+    async share(
+      goalId: number,
+      email: string,
+      permissions: 'view' | 'checkin' = 'checkin',
+    ): Promise<{ emailSent: boolean }> {
       const r = await fetch(`/api/collab/goals/${goalId}/share`, {
         method: 'POST',
         headers: authHeaders(),
@@ -126,7 +130,9 @@ export const useCollabStore = defineStore('collab', {
         try {
           const e = await r.json()
           if (e?.message) msg = e.message
-        } catch { /* no-op */ }
+        } catch {
+          /* no-op */
+        }
         throw new Error(msg)
       }
       const data = await r.json()

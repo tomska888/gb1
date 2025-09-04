@@ -1,67 +1,61 @@
-// server/src/lib/mailer.ts
-import nodemailer, { type Transporter } from 'nodemailer'
+import nodemailer from "nodemailer";
 
-const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true'
-const EMAIL_FROM = process.env.EMAIL_FROM || 'GoalBuddy <no-reply@example.com>'
-
-// Generic SMTP (Mailtrap/SendGrid SMTP/SES SMTP/etc.)
-const SMTP_HOST = process.env.SMTP_HOST || ''
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
-const SMTP_USER = process.env.SMTP_USER || ''
-const SMTP_PASS = process.env.SMTP_PASS || ''
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true' // true for 465
-
-let transporter: Transporter | null = null
-
-function getTransporter(): Transporter | null {
-  if (!EMAIL_ENABLED) return null
-  if (transporter) return transporter
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null
-
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  })
-  return transporter
+export interface ShareEmailPayload {
+  to: string;
+  ownerEmail: string;
+  goalTitle: string;
+  goalCategory?: string | null;
+  targetDate?: string | null;
+  permission: "view" | "checkin";
+  link: string;
 }
 
-export type ShareEmailPayload = {
-  to: string
-  ownerEmail: string
-  goalTitle: string
-  goalCategory?: string | null
-  targetDate?: string | null // YYYY-MM-DD
-  permission: 'view' | 'checkin'
-  link?: string
-}
+/**
+ * Returns:
+ *  - false when email is disabled / not configured (no-op)
+ *  - true  when an email is attempted (SMTP configured)
+ */
+export async function sendSharedGoalEmail(
+  p: ShareEmailPayload,
+): Promise<boolean> {
+  const enabled = process.env.ENABLE_EMAIL === "true";
+  const host = process.env.SMTP_HOST;
 
-export async function sendSharedGoalEmail(p: ShareEmailPayload): Promise<boolean> {
-  const tx = getTransporter()
-  if (!tx) {
-    console.log('[mailer] Email disabled/not configured. Would send:', p)
-    return false
+  if (!enabled || !host) {
+    console.log("[mailer] Email disabled/not configured. Would send:", {
+      to: p.to,
+      ownerEmail: p.ownerEmail,
+      goalTitle: p.goalTitle,
+      goalCategory: p.goalCategory ?? null,
+      targetDate: p.targetDate ?? null,
+      permission: p.permission,
+      link: p.link,
+    });
+    return false;
   }
 
-  const subject = `Goal shared with you: ${p.goalTitle}`
-  const permText = p.permission === 'checkin' ? 'Check-in (can add updates)' : 'View only'
+  const port = Number(process.env.SMTP_PORT || 587);
+  const secure = String(process.env.SMTP_SECURE || "false") === "true";
+  const auth = { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASS! };
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
 
-  const html = [
-    `<p><strong>${p.ownerEmail}</strong> shared a goal with you.</p>`,
-    `<p><strong>Title:</strong> ${p.goalTitle}</p>`,
-    p.goalCategory ? `<p><strong>Category:</strong> ${p.goalCategory}</p>` : '',
-    p.targetDate ? `<p><strong>Target date:</strong> ${p.targetDate}</p>` : '',
-    `<p><strong>Permission:</strong> ${permText}</p>`,
-    p.link ? `<p><a href="${p.link}">Open the goal</a></p>` : '',
-  ].filter(Boolean).join('\n')
+  const transport = nodemailer.createTransport({ host, port, secure, auth });
 
-  await tx.sendMail({
-    from: EMAIL_FROM,
-    to: p.to,
-    subject,
-    html,
-  })
+  const subject = `Goal shared with you by ${p.ownerEmail}`;
+  const text = [
+    `Owner: ${p.ownerEmail}`,
+    `Title: ${p.goalTitle}`,
+    p.goalCategory ? `Category: ${p.goalCategory}` : null,
+    p.targetDate ? `Target date: ${p.targetDate}` : null,
+    `Permission: ${p.permission}`,
+    `Open: ${p.link}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  return true
+  await transport.sendMail({ from, to: p.to, subject, text });
+  return true;
 }
+
+// Back-compat: if anything imports sendShareEmail, keep it working.
+export { sendSharedGoalEmail as sendShareEmail };
