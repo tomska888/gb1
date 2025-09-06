@@ -150,7 +150,7 @@ router.post(
         } else {
           const PUBLIC_APP_URL =
             process.env.PUBLIC_APP_URL || "http://localhost:5174";
-          const link = `${PUBLIC_APP_URL}shared?ownerId=${req.userId!}`;
+          const link = `${PUBLIC_APP_URL}/shared?ownerId=${req.userId!}`;
 
           const targetDateStr = goal.target_date
             ? goal.target_date instanceof Date
