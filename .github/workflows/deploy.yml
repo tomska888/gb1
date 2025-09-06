@@ -252,7 +252,15 @@ jobs:
                 "NODE_ENV": "production",
                 "PORT": "3000",
                 "DATABASE_URL": "${DB_URL}",
-                "JWT_SECRET": "${JWT_SECRET}"
+                "JWT_SECRET": "${JWT_SECRET}",
+                +   "ENABLE_EMAIL": "${{ secrets.ENABLE_EMAIL }}",
+                "SMTP_HOST": "${{ secrets.SMTP_HOST }}",
+                "SMTP_PORT": "${{ secrets.SMTP_PORT || '587' }}",
+                "SMTP_SECURE": "${{ secrets.SMTP_SECURE || 'false' }}",
+                "SMTP_USER": "${{ secrets.SMTP_USER }}",
+                "SMTP_PASS": "${{ secrets.SMTP_PASS }}",
+                "SMTP_FROM": "${{ secrets.SMTP_FROM }}",
+                "PUBLIC_APP_URL": "${{ secrets.PUBLIC_APP_URL }}"
               }
             },
             "client": {
