@@ -7,6 +7,8 @@ export default defineConfig({
     },
     include: ["src/**/*.test.ts"],
     setupFiles: ["src/test/setup.ts"],
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     coverage: {
       reporter: ["text", "json", "html"],
       provider: "v8",

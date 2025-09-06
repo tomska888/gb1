@@ -118,11 +118,17 @@ router.post(
           permissions,
         })
         .returningAll()
-        .executeTakeFirst();
+        .executeTakeFirstOrThrow();
 
       // --- Email notify (best-effort) ---
       let emailSent = false;
+      let emailError: string | null = null;
       try {
+        console.log(
+          "[share] Starting email notification process for goal:",
+          goalId,
+        );
+
         const goal = await db
           .selectFrom("goals")
           .select(["title", "category", "target_date"])
@@ -135,32 +141,52 @@ router.post(
           .where("id", "=", req.userId!)
           .executeTakeFirst();
 
-        const PUBLIC_APP_URL =
-          process.env.PUBLIC_APP_URL || "http://localhost:5174";
-        const link = `${PUBLIC_APP_URL}/shared?ownerId=${req.userId!}`;
+        if (!goal) {
+          console.warn("[share] Goal not found for email notification");
+          emailError = "Goal not found";
+        } else if (!owner) {
+          console.warn("[share] Owner not found for email notification");
+          emailError = "Owner not found";
+        } else {
+          const PUBLIC_APP_URL =
+            process.env.PUBLIC_APP_URL || "http://localhost:5174";
+          const link = `${PUBLIC_APP_URL}/shared?ownerId=${req.userId!}`;
 
-        const targetDateStr = goal?.target_date
-          ? goal.target_date instanceof Date
-            ? goal.target_date.toISOString().slice(0, 10)
-            : new Date(goal.target_date as unknown as string)
-                .toISOString()
-                .slice(0, 10)
-          : null;
+          const targetDateStr = goal.target_date
+            ? goal.target_date instanceof Date
+              ? goal.target_date.toISOString().slice(0, 10)
+              : new Date(goal.target_date as unknown as string)
+                  .toISOString()
+                  .slice(0, 10)
+            : null;
 
-        emailSent = await sendSharedGoalEmail({
-          to: buddy.email,
-          ownerEmail: owner?.email || "owner",
-          goalTitle: goal?.title || "Goal",
-          goalCategory: goal?.category || null,
-          targetDate: targetDateStr,
-          permission: permissions,
-          link,
-        });
+          console.log("[share] Preparing email notification:", {
+            to: buddy.email,
+            from: owner.email,
+            goalTitle: goal.title,
+            link,
+          });
+
+          emailSent = await sendSharedGoalEmail({
+            to: buddy.email,
+            ownerEmail: owner.email,
+            goalTitle: goal.title,
+            goalCategory: goal.category || null,
+            targetDate: targetDateStr,
+            permission: permissions,
+            link,
+          });
+        }
       } catch (e) {
-        console.warn("[share] email failed/disabled:", e);
+        emailError = e instanceof Error ? e.message : "Unknown email error";
+        emailSent = false;
       }
 
-      res.status(201).json({ ...inserted, emailSent });
+      res.status(201).json({
+        ...inserted,
+        emailSent,
+        emailError: emailError || undefined,
+      });
     } catch (e) {
       next(e);
     }
