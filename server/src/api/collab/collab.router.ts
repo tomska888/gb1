@@ -120,7 +120,7 @@ router.post(
         .returningAll()
         .executeTakeFirstOrThrow();
 
-      // --- Email notify (best-effort) ---
+      // --- Email notify ---
       let emailSent = false;
       let emailError: string | null = null;
       try {

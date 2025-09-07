@@ -9,7 +9,20 @@
     "lint": "eslint .",
     "lint:server": "eslint server/src",
     "lint:client": "eslint client/src",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "dev:server": "cd server && npm run migrate:dev && cross-env NODE_ENV=development npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "migrate:dev": "cd server && npm run migrate:dev",
+    "migrate:prod": "cd server && npm run migrate",
+    "test:server": "cd server && npm test",
+    "test:client": "cd client && npm run test:unit",
+    "test:e2e": "cd client && npm run test:e2e",
+    "test:coverage": "cd server && npm run test:coverage",
+    "install:all": "npm install && npm install --workspace=server && npm install --workspace=client"
   },
   "keywords": [],
   "author": "",
@@ -19,16 +32,18 @@
     "client"
   ],
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
     "@vitest/eslint-plugin": "^1.2.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.5.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "eslint": "^9.29.0",
     "eslint-plugin-playwright": "^2.2.0",
     "eslint-plugin-vue": "~10.2.0",
     "globals": "^16.3.0",
-    "vue-eslint-parser": "^10.2.0",
     "typescript-eslint": "^8.7.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "@typescript-eslint/eslint-plugin": "^8.7.0"
+    "vue-eslint-parser": "^10.2.0"
   }
 }

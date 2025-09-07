@@ -1,11 +1,11 @@
-# GoalBuddy API
+# GoalBuddy
 
+https://goalbuddyone.d00ed23ca0jv2.eu-central-1.cs.amazonlightsail.com/
 
 ## 📚 Table of Contents
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
 - [Setup & Installation](#setup--installation)
 - [Running the Application](#running-the-application)
@@ -20,6 +20,7 @@
 - **Secure User Authentication**: JWT-based authentication with bcrypt password hashing.
 - **User Registration & Login**: Endpoints for creating accounts and logging in.
 - **Goal Management**: Authenticated users can create and view their personal goals.
+- **Buddy Access**: Share goals with buddies via email invitations.
 - **Database Migrations**: Structured migration system for database schema evolution.
 - **Scalable Architecture**: Modular and clean codebase ready for expansion.
 
@@ -32,59 +33,13 @@
 - **Framework**: Express.js
 - **Database**: PostgreSQL with Kysely
 - **Authentication**: JWT
-- **Testing**: Vitest + Supertest
-- **Project Structure**: Monorepo-ready (includes `server/` folder)
+- **Testing**: Vitest + Supertest + Playwright
+- **Linting & Formatting**: ESLint + Prettier
+- **Project Structure**: Monorepo
 - **Migrations**: Kysely custom file-based migrations (Windows-compatible)
 - **Validation**: Zod
+- **Infra**: Github Actions (CI/CD), Docker + ECR, AWS LightSail (hosting)
 
----
-
-## 📁 Project Structure
-
-```
-goalbuddy/
-├── client/                      # (Future front-end app)
-├── node_modules/
-├── server/
-│   ├── dist/                    # Compiled output
-│   └── src/                     # Source code
-│       ├── api/                 # API route handlers
-│       │   ├── auth/
-│       │   │   └── auth.router.ts
-│       │   └── goals/
-│       │       └── goals.router.ts
-│       ├── config/
-│       │   └── database.ts      # DB connection setup
-│       ├── lib/
-│       │   └── windows-migration-provider.ts
-│       ├── middleware/
-│       │   └── middleware.ts
-│       ├── migrations/          # DB migration scripts
-│       │   ├── kysely-migrate.config.ts
-│       │   ├── 1751386205669_create-users.ts
-│       │   └── 1751388060534_create-goals.ts
-│       ├── types/
-│       │   ├── db.ts
-│       │   ├── express.d.ts
-│       ├── tests/               # Unit/integration tests
-│       │   ├── auth.router.test.ts
-│       │   ├── goals.router.test.ts
-│       │   ├── middleware.test.ts
-│       │   └── windows-migration-provider.test.ts
-│       ├── index.ts
-│   ├── .env                         # Local environment variables
-│   ├── .env.example                 # Sample env file
-│   ├── vitest.config.ts              # Vitest configuration
-│   ├── tsconfig.ts                   # TypeScript configuration
-│   ├── .gitignore
-│   ├── package.json
-│   ├── package-lock.json
-│   └── tsconfig.json                # TypeScript config
-├── .gitignore
-├── package.json
-├── package-lock.json
-├── README.md
-```
 ---
 
 ## 📋 Prerequisites
@@ -94,54 +49,81 @@ Ensure you have the following installed:
 - Node.js (v18+)
 - NPM
 - PostgreSQL
+- pgAdmin4
 
 ---
 
 ## ⚙️ Setup & Installation
 
-### 1. Clone the Repository
+### 1. Install and Configure PostgreSQL & pgAdmin4
+Install PostgreSQL and pgAdmin4 on your system:
+- Windows: Download from postgresql.org
+- macOS: brew install postgresql pgadmin4
+- Ubuntu: sudo apt install postgresql pgadmin4
+
+### 2. Create Development Databases
+1. Open pgAdmin4
+2. Connect to PostgreSQL server using default credentials:
+- Host: localhost
+- Port: 5432
+- Username: postgres
+- Password: admin (or your configured password)
+3. Create databases:
+- Right-click "Databases" → Create → Database
+- Create: goalbuddy (for development)
+- Create: goalbuddy_test (for testing)
+
+### 3. Clone the Repository
 
 ```bash
 git clone <your-repository-url>
 cd goalbuddy
 ```
 
-### 2. Install Dependencies
+### 4. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Set Up the Database
-Create a new PostgreSQL database named goalbuddy.
-
-### 4. Configure Environment Variables
+### 5. Environment Configuration
+Create `.env.development` in the root directory:
 ```bash
-cd server
-cp .env.example .env
+NODE_ENV=development
+PORT=3001
+DATABASE_URL="postgresql://postgres:admin@localhost:5432/goalbuddy"
+JWT_SECRET="your-super-secret-key-that-is-long-and-random"
+TEST_DATABASE_URL="postgresql://postgres:admin@localhost:5432/goalbuddy_test"
+ENABLE_EMAIL=false
+PUBLIC_APP_URL=http://localhost:5173
 ```
-Edit .env and fill in your local DB credentials.
 
-### 5. Run Migrations
-From the root project directory:
-
+Create `client/.env.development`:
 ```bash
-npm run migrate -w server
+VITE_API_URL=http://localhost:3001
+NODE_ENV=development
+VITE_API_PROXY_TARGET=http://localhost:3001
 ```
+
+### 6. Running Development Environment
+From the root directory, run:
+```bash
+npm run dev
+```
+Migrations will run automatically on server start.
 
 ---
-
-## 🚀 Running the Application
-From the root directory:
-
-```bash
-npm run dev -w server
-```
-Your server will be running at: http://localhost:3000
-
----
-## 📡 API Endpoints
+## 📡 Testing API Endpoints
 
 You can use tools like Postman or Insomnia to test the API.
+
+### Health Check
+```bash
+# Basic health check
+curl http://localhost:3001/health
+
+# Database health check
+curl http://localhost:3001/api/health
+```
 
 ### 🔐 Authentication
 | Method | Endpoint           | Description             |
@@ -149,23 +131,24 @@ You can use tools like Postman or Insomnia to test the API.
 | POST   | `/api/auth/signup` | Creates a new user      |
 | POST   | `/api/auth/login`  | Logs in and returns JWT |
 
-Example Signup Request:
+Example requests:
 
-```json
-POST /api/auth/signup
-{
-  "email": "testuser@example.com",
-  "password": "password123"
-}
-```
-Example Login Request:
+```bash
+# Register new user
+curl -X POST http://localhost:3001/api/auth/signup
+  -H "Content-Type: application/json"
+  -d '{
+    "email": "test@example.com",
+    "password": "password123"
+  }'
 
-```json
-POST /api/auth/login
-{
-  "email": "testuser@example.com",
-  "password": "password123"
-}
+# Login
+curl -X POST http://localhost:3001/api/auth/login
+  -H "Content-Type: application/json"
+  -d '{
+    "email": "test@example.com",
+    "password": "password123"
+  }'
 ```
 ---
 ## 🎯 Goals (Protected)
@@ -179,18 +162,44 @@ Note: All goal routes require a valid JWT in the `Authorization` header:
 
 Example Create Goal Request:
 
-```json
-POST /api/goals
-{
-  "title": "Learn TypeScript",
-  "description": "Complete the official handbook.",
-  "target_date": "2025-09-30"
-}
+```bash
+# Get user's goals
+curl http://localhost:3001/api/goals
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Create a new goal
+curl -X POST http://localhost:3001/api/goals
+  -H "Content-Type: application/json"
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -d '{
+    "title": "Learn TypeScript",
+    "description": "Master TypeScript fundamentals",
+    "category": "Learning",
+    "target_date": "2025-06-01"
+  }'
+```
+---
+Collaboration API
+---
+```bash
+# Share a goal with another user
+curl -X POST http://localhost:3001/api/collab/goals/1/share
+  -H "Content-Type: application/json"
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -d '{
+    "email": "buddy@example.com",
+    "permissions": "checkin"
+  }'
+
+# Get shared goals
+curl http://localhost:3001/api/collab/goals/shared
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
 ```
 
 ## 🧪 Running Tests
 
-This project uses **Vitest** with **Supertest** for integration and unit tests.
+This project uses **Vitest** with **Supertest** for integration and unit tests and Playwright for end-to-end tests.
 
 ```bash
 npm run test -w server
@@ -201,5 +210,9 @@ Run tests with coverage:
 npm run test:coverage -w server
 ```
 
-- ✅ Current coverage: >80% line coverage
-- 🧪 Covers: `auth.router`, `goals.router`, `middleware`, and `windows-migration-provider`
+- ✅ Current coverage: >90% line coverage
+
+Frontend tests:
+```bash
+npm run test:e2e
+```

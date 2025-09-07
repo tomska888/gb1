@@ -10,18 +10,12 @@ export interface ShareEmailPayload {
   link: string;
 }
 
-/**
- * Returns:
- *  - false when email is disabled / not configured (no-op)
- *  - true  when an email is attempted (SMTP configured)
- */
 export async function sendSharedGoalEmail(
   p: ShareEmailPayload,
 ): Promise<boolean> {
   const enabled = process.env.ENABLE_EMAIL === "true";
   const host = process.env.SMTP_HOST;
 
-  // Enhanced debug logging
   console.log("[mailer] Configuration check:", {
     enabled,
     host,
@@ -59,7 +53,7 @@ export async function sendSharedGoalEmail(
     port,
     secure,
     from,
-    user: auth.user.replace(/(.{2}).*(@.*)/, "$1***$2"), // Hide most of email for security
+    user: auth.user.replace(/(.{2}).*(@.*)/, "$1***$2"),
   });
 
   try {
@@ -68,18 +62,16 @@ export async function sendSharedGoalEmail(
       port,
       secure,
       auth,
-      debug: true, // Enable debug output
-      logger: true, // Enable logger
+      debug: true,
+      logger: true,
     });
 
-    // Test the connection before sending
     console.log("[mailer] Testing SMTP connection...");
     await transport.verify();
     console.log("[mailer] SMTP connection verified successfully");
 
     const subject = `🎯 Goal shared with you by ${p.ownerEmail}`;
 
-    // Create both text and HTML versions
     const text = [
       `${p.ownerEmail} has shared a goal with you!`,
       ``,
@@ -97,21 +89,21 @@ export async function sendSharedGoalEmail(
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #333;">🎯 Goal Shared with You!</h2>
         <p><strong>${p.ownerEmail}</strong> has shared a goal with you:</p>
-        
+
         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
           <h3 style="margin-top: 0; color: #007bff;">${p.goalTitle}</h3>
           ${p.goalCategory ? `<p><strong>Category:</strong> ${p.goalCategory}</p>` : ""}
           ${p.targetDate ? `<p><strong>Target Date:</strong> ${p.targetDate}</p>` : ""}
           <p><strong>Permission:</strong> ${p.permission === "checkin" ? "Check-in & View" : "View Only"}</p>
         </div>
-        
+
         <a href="${p.link}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 10px 0;">
           View Goal →
         </a>
-        
+
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
         <p style="color: #666; font-size: 14px;">
-          This email was sent because ${p.ownerEmail} shared a goal with you. 
+          This email was sent because ${p.ownerEmail} shared a goal with you.
           If you didn't expect this email, you can safely ignore it.
         </p>
       </div>
@@ -137,16 +129,13 @@ export async function sendSharedGoalEmail(
     console.error("[mailer] Failed to send email:");
     console.error("[mailer] Error details:", error);
 
-    // Log specific error types for better debugging
     if (error instanceof Error) {
       console.error("[mailer] Error message:", error.message);
       console.error("[mailer] Error stack:", error.stack);
     }
 
-    // Don't throw the error - let the calling code handle it
     return false;
   }
 }
 
-// Back-compat: if anything imports sendShareEmail, keep it working.
 export { sendSharedGoalEmail as sendShareEmail };

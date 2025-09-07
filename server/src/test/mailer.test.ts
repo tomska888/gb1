@@ -1,4 +1,3 @@
-// server/src/test/mailer.test.ts
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 const ORIG_ENV = { ...process.env };
@@ -10,10 +9,9 @@ async function loadMailerWith(
   vi.resetModules();
   process.env = { ...ORIG_ENV, ...env };
 
-  // doMock is NOT hoisted; safe to use local "mode"
   vi.doMock("nodemailer", () => {
     if (mode === "none") {
-      const createTransport = vi.fn(); // should not be called
+      const createTransport = vi.fn();
       return { default: { createTransport }, createTransport };
     }
 
@@ -31,7 +29,6 @@ async function loadMailerWith(
     return { default: { createTransport }, createTransport };
   });
 
-  // Import AFTER mocking
   const mailer = await import("../lib/mailer.js");
   const nodemailer = (await import("nodemailer")) as unknown as {
     createTransport: import("vitest").Mock;
@@ -89,8 +86,8 @@ describe("mailer.sendSharedGoalEmail", () => {
       {
         ENABLE_EMAIL: "true",
         SMTP_HOST: "smtp.example.com",
-        SMTP_USER: undefined, // <— ensure creds are unset
-        SMTP_PASS: undefined, // <— ensure creds are unset
+        SMTP_USER: undefined,
+        SMTP_PASS: undefined,
       },
       "none",
     );

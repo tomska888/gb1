@@ -6,10 +6,8 @@ let app: express.Application;
 let dbMock: any;
 let sendSharedGoalEmailMock: any;
 
-// helper: build a fresh chainable Kysely-like mock
 function makeDbMock() {
   return {
-    // chainable
     selectFrom: vi.fn().mockReturnThis(),
     innerJoin: vi.fn().mockReturnThis(),
     insertInto: vi.fn().mockReturnThis(),
@@ -23,12 +21,10 @@ function makeDbMock() {
     limit: vi.fn().mockReturnThis(),
     offset: vi.fn().mockReturnThis(),
 
-    // terminals
     executeTakeFirst: vi.fn(),
     executeTakeFirstOrThrow: vi.fn(),
     execute: vi.fn(),
 
-    // used by revoke route (not hit here but keep harmless)
     transaction: vi.fn(() => ({
       execute: async (fn: any) => {
         const trx = {
@@ -47,7 +43,6 @@ beforeEach(async () => {
   dbMock = makeDbMock();
   sendSharedGoalEmailMock = vi.fn();
 
-  // mock modules ONLY for this file’s imports
   vi.doMock("../config/database.js", () => ({ db: dbMock }));
   vi.doMock("../lib/mailer.js", () => ({
     sendSharedGoalEmail: sendSharedGoalEmailMock,
@@ -59,7 +54,6 @@ beforeEach(async () => {
     },
   }));
 
-  // import router after mocks
   const { default: collabRouter } = await import(
     "../api/collab/collab.router.js"
   );
@@ -76,24 +70,16 @@ afterEach(() => {
 
 describe("Collaboration Router - Share Goal", () => {
   it("should successfully share a goal and send email", async () => {
-    // call order:
-    // 1) userOwnsGoal         -> executeTakeFirst
-    // 2) buddy lookup         -> executeTakeFirst
-    // 3) existing share?      -> executeTakeFirst
-    // (insert)                -> executeTakeFirstOrThrow
-    // 4) goal for email       -> executeTakeFirst
-    // 5) owner for email      -> executeTakeFirst
-
     dbMock.executeTakeFirst
-      .mockResolvedValueOnce({ user_id: 1 }) // owns
-      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" }) // buddy
-      .mockResolvedValueOnce(null) // not shared
+      .mockResolvedValueOnce({ user_id: 1 })
+      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" })
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         title: "Learn Spanish",
         category: "Education",
         target_date: "2025-12-31",
-      }) // goal
-      .mockResolvedValueOnce({ email: "owner@example.com" }); // owner
+      })
+      .mockResolvedValueOnce({ email: "owner@example.com" });
 
     dbMock.executeTakeFirstOrThrow.mockResolvedValue({
       id: 10,
@@ -127,8 +113,8 @@ describe("Collaboration Router - Share Goal", () => {
 
   it("should return 404 when user not found", async () => {
     dbMock.executeTakeFirst
-      .mockResolvedValueOnce({ user_id: 1 }) // owns
-      .mockResolvedValueOnce(null); // buddy not found
+      .mockResolvedValueOnce({ user_id: 1 })
+      .mockResolvedValueOnce(null);
 
     const res = await request(app)
       .post("/api/collab/goals/123/share")
@@ -141,9 +127,9 @@ describe("Collaboration Router - Share Goal", () => {
 
   it("should return 409 when goal already shared with another user", async () => {
     dbMock.executeTakeFirst
-      .mockResolvedValueOnce({ user_id: 1 }) // owns
-      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" }) // buddy
-      .mockResolvedValueOnce({ buddy_id: 3 }); // already shared with someone else
+      .mockResolvedValueOnce({ user_id: 1 })
+      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" })
+      .mockResolvedValueOnce({ buddy_id: 3 });
 
     const res = await request(app)
       .post("/api/collab/goals/123/share")
@@ -156,15 +142,15 @@ describe("Collaboration Router - Share Goal", () => {
 
   it("should handle email failure gracefully", async () => {
     dbMock.executeTakeFirst
-      .mockResolvedValueOnce({ user_id: 1 }) // owns
-      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" }) // buddy
-      .mockResolvedValueOnce(null) // not shared yet
+      .mockResolvedValueOnce({ user_id: 1 })
+      .mockResolvedValueOnce({ id: 2, email: "buddy@example.com" })
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         title: "Test Goal",
         category: null,
         target_date: null,
-      }) // goal
-      .mockResolvedValueOnce({ email: "owner@example.com" }); // owner
+      })
+      .mockResolvedValueOnce({ email: "owner@example.com" });
 
     dbMock.executeTakeFirstOrThrow.mockResolvedValue({
       id: 20,
@@ -175,7 +161,7 @@ describe("Collaboration Router - Share Goal", () => {
       created_at: new Date(),
     });
 
-    sendSharedGoalEmailMock.mockResolvedValue(false); // simulate SMTP fail
+    sendSharedGoalEmailMock.mockResolvedValue(false);
 
     const res = await request(app)
       .post("/api/collab/goals/123/share")
