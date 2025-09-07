@@ -161,13 +161,6 @@
         </div>
       </details>
 
-      <details class="mb-2">
-        <summary class="fw-semibold">Can I install it like an app?</summary>
-        <div class="mt-2">
-          Yes (PWA). In Chrome: menu ⋮ → <em>Install app</em>. On iOS Safari: <em>Share</em> →
-          <em>Add to Home Screen</em>.
-        </div>
-      </details>
     </section>
 
     <section class="mb-5">
@@ -180,10 +173,10 @@
 
       <h3 class="h6 mt-3">Roadmap</h3>
       <ul class="list-unstyled mb-0">
-        <li>• Email digests & reminders</li>
         <li>• Goal templates & categories library</li>
-        <li>• CSV export & calendar (ICS) export</li>
+        <li>• Calendar export</li>
         <li>• Reactions and “high-five” streaks</li>
+        <li>• Mobile compatibility</li>
       </ul>
     </section>
 
@@ -191,8 +184,8 @@
       <h2 class="h4">Contact & feedback</h2>
       <p class="mb-1">
         Found a bug or have an idea? Open an issue on
-        <a href="https://github.com/tomska888/gb1" target="_blank" rel="noreferrer">GitHub</a>
-        or email <a href="mailto:support@example.com">support@example.com</a>.
+        <a href="https://github.com/TuringCollegeSubmissions/tokosa-WD2.3.5.4" target="_blank" rel="noreferrer">GitHub</a>
+        or email <a href="mailto:goalbuddy.noreply@gmail.com">goalbuddy.noreply@gmail.com</a>.
       </p>
     </section>
   </div>
